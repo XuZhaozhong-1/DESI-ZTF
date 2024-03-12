@@ -1,0 +1,13 @@
+File index:
+old_dispersion: calculates the dispersion using the likelihood function B22 from the appendix, using Scipy optimize
+old_MCMC: calculates dispersion using likelihood function B22 and EmCee MCMC, but has problems with burn-in and unexpected results
+MCMC: Most up-do-date dispersion MCMC calculation, fixes all errors and uses an updated likelihood function
+
+SNR-redshift: density plots of redshift vs magnitude, after filtering for the signal to noise ratio
+redshift-magnitude_plots: assorted density plots of redshift vs magnitude
+
+bandpass: example of how to load a ZTF bandpass function and save as an npy file
+reading_fits: example of how to read DESI data from a fits file, provided by Anand
+
+Fitting: fits the density function based on the function from another paper
+Flux_wavelength: code to carry out a k-correction
