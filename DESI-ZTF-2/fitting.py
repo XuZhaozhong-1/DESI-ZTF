@@ -158,7 +158,7 @@ class discovery_fraction(object):
 class ln_posterior(object):
     def __init__(self, z, eff, Nsamples=1000):
         self._y = numpy.random.normal(0,1,Nsamples)
-        self.ln_eff = eff
+        self.eff = eff
         self.discovery_fraction = discovery_fraction(eff)
         self.phi = phi()
         self.N_obs = N_obs(z,eff)
@@ -173,4 +173,4 @@ class ln_posterior(object):
         integrand = self.eff(mhat)/df*phi
         maxintegrand = integrand.max()
 
-        return jnp.log(maxinterand)  + jnp.log((integrand/maxintegrand).sum()) + nquasar*jnp,log(N_obs) - N_obs
+        return jnp.log(maxinterand)  + jnp.log((integrand/maxintegrand).sum()) + nquasar*jnp.log(N_obs) - N_obs
