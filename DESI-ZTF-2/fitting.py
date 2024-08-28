@@ -146,42 +146,31 @@ class N_obs(object):
         m = self._y * sigma + M + x+ k + mu
         return -self.Volume*(Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)) * self.phi_star_over_ln10* (self.eff(m)/(L**((beta-alpha)/2) + L**((-beta+alpha)/2))).mean()
 
-# class discovery_fraction(object):
-#     def __init__(self, eff, Nsamples=1000):
-#         self._y = numpy.random.normal(0,1,Nsamples)
-#         self.eff = eff
-
-#     def __call__(self, x, M, k, mu,,sigma):
-#         m = self._y[None,:] * sigma[:,None] + M[:,None] + x+ k[:,None] + mu[:,None]
-#         return self.eff(m).mean(axis=1)
-
-class ln_discovery_fraction(object):
-    def __init__(self, ln_eff, Nsamples=1000):
+class discovery_fraction(object):
+    def __init__(self, eff, Nsamples=1000):
         self._y = numpy.random.normal(0,1,Nsamples)
-        self.ln_eff = ln_eff
+        self.eff = eff
 
     def __call__(self, x, M, k, mu,,sigma):
         m = self._y[None,:] * sigma[:,None] + M[:,None] + x+ k[:,None] + mu[:,None]
-        lnintegrand = self.ln_eff(m)
-        maxlnintegrand = lnintegrand.max(axis=1)
-        return maxlnintegrand + jnp.log((lnintegrand/maxlnintegrand[None,:]).sum(axis=1))
+        return self.eff(m).mean(axis=1)
 
 class ln_posterior(object):
-    def __init__(self, z, ln_eff, Nsamples=1000):
+    def __init__(self, z, eff, Nsamples=1000):
         self._y = numpy.random.normal(0,1,Nsamples)
-        self.ln_eff = ln_eff
-        self.discovery_fraction = discovery_fraction(ln_eff)
+        self.eff = eff
+        self.discovery_fraction = discovery_fraction(eff)
         self.phi = phi()
         self.N_obs = N_obs(z,eff)
 
     def __call__(self, x, mhat, k, mu,,sigma):
         nquasar=len(mhat)
         M = self._y[None, :] * sigma[:,None] + mhat[:,None] - x - k[:,None] - mu[:,None]
-        ln_df = self.ln_discovery_fraction(x,M,k,mu,sigma)
+        df = self.discovery_fraction(x,M,k,mu,sigma)
         N_obs = self.N_obs(x,alpha,beta,Lmin,k,mu,sigma)
         L = abs_mag_to_L(M)
         phi = self,phi(L,alpha,beta,Lmin)
-        lnintegrand = self.ln_eff(mhat) - jnp.log(df)  + jnp.log(phi)
-        maxlnintegrand = lnintegrand.max()
+        integrand = self.eff(mhat)/df*phi
+        maxintegrand = integrand.max()
 
-        return maxlnintegrand  + jnp.log((lnintegrand/maxlnintegrand).sum()) + nquasar*jnp,log(N_obs) - N_obs
+        return jnp.log(maxinterand)  + jnp.log((integrand/maxintegrand).sum()) + nquasar*jnp.log(N_obs) - N_obs
