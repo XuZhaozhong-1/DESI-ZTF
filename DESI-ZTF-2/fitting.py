@@ -166,7 +166,7 @@ class ln_posterior(object):
     def __call__(self, x, mhat, k, mu,,sigma):
         nquasar=len(mhat)
         M = self._y[None, :] * sigma[:,None] + mhat[:,None] - x - k[:,None] - mu[:,None]
-        ln_df = self.ln_discovery_fraction(x,M,k,mu,sigma)
+        df = self.discovery_fraction(x,M,k,mu,sigma)
         N_obs = self.N_obs(x,alpha,beta,Lmin,k,mu,sigma)
         L = abs_mag_to_L(M)
         phi = self,phi(L,alpha,beta,Lmin)
