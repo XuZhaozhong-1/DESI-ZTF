@@ -5,6 +5,7 @@ from astropy import units
 from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from astropy.cosmology import Planck18
+import jax
 
 def abs_mag_to_L(M):
     """
@@ -128,6 +129,10 @@ class phi(object):
         norm = -(Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)) * (1/(L**((beta[:,None]-alpha[:,None])/2) + L**((-beta[:,None]-alpha[:,None])/2))).mean(axis=1)
         return 1/(_L**(-alpha) + _L**(-beta))/norm
 
+# designed for 
+def phi_new(L, alpha, beta, Lmin):
+    norm = Lmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+a)/(a-b),-Lmin**(alpha-beta))
+    return 1/(L**(-alpha) + L**(-beta))/norm
 
 class N_obs(object):
     def __init__(self, zmin, zmax, eff, Nsamples=1000):
@@ -154,6 +159,9 @@ class discovery_fraction(object):
     def __call__(self, x, M, k, mu,,sigma):
         m = self._y[None,:] * sigma[:,None] + M[:,None] + x+ k[:,None] + mu[:,None]
         return self.eff(m).mean(axis=1)
+
+def discovery_fraction_effpower(x, M, k, mu,,sigma):
+    
 
 class ln_posterior(object):
     def __init__(self, z, eff, Nsamples=1000):
