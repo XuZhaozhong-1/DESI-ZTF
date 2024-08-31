@@ -8,7 +8,7 @@ from astropy.cosmology import Planck18
 import jax
 import scipy.integrate as integrate
 import scipy.special
-import scipy.stats.norm
+import scipy.stats
 import numpy
 
 def abs_mag_to_L(M):
@@ -107,7 +107,7 @@ def L_to_M(L):
         L : luminosity in erg/s
     """
     L_0 = const.L_bol0.to(units.erg / units.s).value
-    return -2.5*numpy.log10(L/L0)
+    return -2.5*numpy.log10(L/L_0)
 
 def get_phis(Ls, z, paper):
     gamma1, gamma2, L_star, phi_star = get_lfpars(paper, z)
@@ -199,24 +199,26 @@ def discovery_fraction_exp(m0,b,mbar,sigma):
 	)
 	return ans
 
+# uses mean redshift
 class N_obs(object):
-    def __init__(self, zmin, zmax, eff):
+    def __init__(self, zmin, zmax):
+        self.zmean = (zmin+zmax)/2
         self.desi_fraction = 0.16
-        _, _, self.L_star, phi_star = get_lfpars_shen20((zmax+zmin)/2)
+        _, _, self.L_star, phi_star = get_lfpars_shen20(zmean)
+        self.mu = Planck18.distmod(zmean)
         self.phi_star_over_ln10 = phi_star/numpy.log(10)
-        self.eff = eff
         self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin))
 
         # Using Laplace's approximation
         # alpha, beta, k, mu, sigma are all an average value for the redshit bin.
-	def __call__(m0, b, x, alpha, beta, Lmin, k, mu, sigma):
-		fmin = 10**((-mu-x-k)/2.5)*Lmin
-		f0 = 10**(-m0/2.5)
-		term1 = f0**b * (
-			f0**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-f0**(alpha-beta))
-			- fmin**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-fmin**(alpha-beta))
-			)
-		term2 = fmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-fmin**(alpha-beta))
-		ans = term1 + term2
-		ans = ans * self.Volume * self.phi_star_over_ln10
-	    return ans
+    def __call__(self, m0, b, x, alpha, beta, Lmin, k, sigma):
+        fmin = 10**((-self.mu-x-k)/2.5)*Lmin
+        f0 = 10**(-m0/2.5)
+        term1 = f0**b * (
+            f0**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-f0**(alpha-beta))
+            - fmin**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-fmin**(alpha-beta))
+            )
+        term2 = fmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-fmin**(alpha-beta))
+        ans = term1 + term2
+        ans = ans * self.Volume * self.phi_star_over_ln10
+        return ans
