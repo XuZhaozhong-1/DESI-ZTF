@@ -220,5 +220,5 @@ class N_obs(object):
             )
         term2 = fmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-fmin**(alpha-beta))
         ans = term1 + term2
-        ans = ans * self.Volume * self.phi_star_over_ln10
+        ans = ans * self.Volume * self.phi_star_over_ln10 / self.L_star
         return ans
