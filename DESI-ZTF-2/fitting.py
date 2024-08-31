@@ -6,6 +6,10 @@ from matplotlib import pyplot as plt
 from matplotlib import gridspec
 from astropy.cosmology import Planck18
 import jax
+import scipy.integrate as integrate
+import scipy.special
+import scipy.stats
+import numpy
 
 def abs_mag_to_L(M):
     """
@@ -103,7 +107,7 @@ def L_to_M(L):
         L : luminosity in erg/s
     """
     L_0 = const.L_bol0.to(units.erg / units.s).value
-    return -2.5*numpy.log10(L/L0)
+    return -2.5*numpy.log10(L/L_0)
 
 def get_phis(Ls, z, paper):
     gamma1, gamma2, L_star, phi_star = get_lfpars(paper, z)
@@ -131,7 +135,7 @@ class phi(object):
 
 # designed for 
 def phi_new(L, alpha, beta, Lmin):
-    norm = Lmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+a)/(a-b),-Lmin**(alpha-beta))
+    norm = Lmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-Lmin**(alpha-beta))
     return 1/(L**(-alpha) + L**(-beta))/norm
 
 class N_obs(object):
@@ -159,8 +163,6 @@ class discovery_fraction(object):
     def __call__(self, x, M, k, mu,,sigma):
         m = self._y[None,:] * sigma[:,None] + M[:,None] + x+ k[:,None] + mu[:,None]
         return self.eff(m).mean(axis=1)
-
-def discovery_fraction_effpower(x, M, k, mu,,sigma):
     
 
 class ln_posterior(object):
@@ -182,3 +184,41 @@ class ln_posterior(object):
         maxintegrand = integrand.max()
 
         return jnp.log(maxinterand)  + jnp.log((integrand/maxintegrand).sum()) + nquasar*jnp.log(N_obs) - N_obs
+
+
+
+
+def discovery_fraction_exp(m0,b,mbar,sigma):
+	# m0=0; mbar=1; b=2; sigma=1
+	coeff = b*numpy.log(10)/2.5
+	# integrate.quad(lambda m: (1 if m<m0 else 10**(-b*(m-m0)/2.5)) /numpy.sqrt(2*numpy.pi)/sigma*numpy.exp(-(m-mbar)**2/2/sigma**2), -100,100)
+	ans = (
+		scipy.stats.norm.cdf(m0,mbar,sigma) 
+		+ sigma/2*numpy.exp(coeff/2*(2*m0+coeff*sigma**2-2*mbar)) 
+			* scipy.special.erfc((m0+coeff*sigma**2-mbar)/numpy.sqrt(2)/sigma)
+	)
+	return ans
+
+# uses mean redshift
+class N_obs(object):
+    def __init__(self, zmin, zmax):
+        self.zmean = (zmin+zmax)/2
+        self.desi_fraction = 0.16
+        _, _, self.L_star, phi_star = get_lfpars_shen20(zmean)
+        self.mu = Planck18.distmod(zmean)
+        self.phi_star_over_ln10 = phi_star/numpy.log(10)
+        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin))
+
+        # Using Laplace's approximation
+        # alpha, beta, k, mu, sigma are all an average value for the redshit bin.
+    def __call__(self, m0, b, x, alpha, beta, Lmin, k, sigma):
+        fmin = 10**((-self.mu-x-k)/2.5)*Lmin
+        f0 = 10**(-m0/2.5)
+        term1 = f0**b * (
+            f0**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-f0**(alpha-beta))
+            - fmin**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-fmin**(alpha-beta))
+            )
+        term2 = fmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-fmin**(alpha-beta))
+        ans = term1 + term2
+        ans = ans * self.Volume * self.phi_star_over_ln10
+        return ans
