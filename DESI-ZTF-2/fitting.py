@@ -137,7 +137,7 @@ class phi(object):
 def phi_new(L, alpha, beta, Lmin):
     norm = Lmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-Lmin**(alpha-beta))
     return 1/(L**(-alpha) + L**(-beta))/norm
-
+'''
 class N_obs(object):
     def __init__(self, zmin, zmax, eff, Nsamples=1000):
         self.desi_fraction = 0.16
@@ -151,39 +151,43 @@ class N_obs(object):
     def __call__(self, x, alpha, beta, Lmin, k, mu, sigma):
         x = self._x*Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)
         L=(((alpha+beta)/2+1)*x)**(1/(1+(alpha+beta)/2))
-        M = L_to_M(L)
+        M = L_to_M(L*self.L_star)
         m = self._y * sigma + M + x+ k + mu
         return -self.Volume*(Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)) * self.phi_star_over_ln10* (self.eff(m)/(L**((beta-alpha)/2) + L**((-beta+alpha)/2))).mean()
+        '''
+# uses mean redshift
+class N_obs(object):
+    def __init__(self, zmin, zmax):
+        self.zmean = (zmin+zmax)/2
+        self.desi_fraction = 0.16
+        _, _, self.L_star, phi_star = get_lfpars_shen20(self.zmean)
+        self.mu = Planck18.distmod(self.zmean).value
+        self.phi_star_over_ln10 = phi_star/numpy.log(10)
+        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
+
+        # Using Laplace's approximation
+        # alpha, beta, k, mu, sigma are all an average value for the redshit bin.
+    def __call__(self, m0, b, x, alpha, beta, Lmin, Lmax,k, sigma):
+        const = 10**(-b/2.5)*(x+k.mean()+self.mu-m0)
+        L0 = abs_mag_to_L(m0-k.mean()-self.mu-x)/self.L_star
+        term1 = const/(alpha+b+1)*(L0**(alpha+b+1)*scipy.special.hyp2f1(1,(alpha+b+1)/(alpha-beta),1+(alpha+b+1)/(alpha-beta),-L0**(alpha-beta))-Lmin**(alpha+b+1)*scipy.special.hyp2f1(1,(alpha+b+1)/(alpha-beta),1+(alpha+b+1)/(alpha-beta),-Lmin**(alpha-beta)))
+        term2 = 1/(alpha+1)*(Lmax**(alpha+1)*scipy.special.hyp2f1(1,(alpha+1)/(alpha-beta),1+(1+alpha)/(alpha-beta),-Lmax**(alpha-beta))-L0**(alpha+1)*scipy.special.hyp2f1(1,(alpha+1)/(alpha-beta),1+(1+alpha)/(alpha-beta),-L0**(alpha-beta)))
+        ans = term1 + term2
+        print(term1)
+        print(term2)
+        print(self.Volume,self.phi_star_over_ln10,self.L_star)
+        ans = ans * self.Volume * self.phi_star_over_ln10
+        return ans
 
 class discovery_fraction(object):
     def __init__(self, eff, Nsamples=1000):
         self._y = numpy.random.normal(0,1,Nsamples)
         self.eff = eff
 
-    def __call__(self, x, M, k, mu,,sigma):
+    def __call__(self, x, M, k, mu,sigma):
         m = self._y[None,:] * sigma[:,None] + M[:,None] + x+ k[:,None] + mu[:,None]
         return self.eff(m).mean(axis=1)
     
-
-class ln_posterior(object):
-    def __init__(self, z, eff, Nsamples=1000):
-        self._y = numpy.random.normal(0,1,Nsamples)
-        self.eff = eff
-        self.discovery_fraction = discovery_fraction(eff)
-        self.phi = phi()
-        self.N_obs = N_obs(z,eff)
-
-    def __call__(self, x, mhat, k, mu,,sigma):
-        nquasar=len(mhat)
-        M = self._y[None, :] * sigma[:,None] + mhat[:,None] - x - k[:,None] - mu[:,None]
-        df = self.discovery_fraction(x,M,k,mu,sigma)
-        N_obs = self.N_obs(x,alpha,beta,Lmin,k,mu,sigma)
-        L = abs_mag_to_L(M)
-        phi = self,phi(L,alpha,beta,Lmin)
-        integrand = self.eff(mhat)/df*phi
-        maxintegrand = integrand.max()
-
-        return jnp.log(maxinterand)  + jnp.log((integrand/maxintegrand).sum()) + nquasar*jnp.log(N_obs) - N_obs
 
 
 
@@ -199,15 +203,37 @@ def discovery_fraction_exp(m0,b,mbar,sigma):
 	)
 	return ans
 
+
+class ln_posterior(object):
+    def __init__(self, z, eff, Nsamples=1000):
+        self._y = numpy.random.normal(0,1,Nsamples)
+        self.eff = eff
+        self.discovery_fraction = discovery_fraction(eff)
+        self.phi = phi()
+        self.N_obs = N_obs(z,eff)
+        _, _, self.L_star, phi_star = get_lfpars_shen20(z)
+
+    def __call__(self, x, mhat, k, mu,sigma):
+        nquasar=len(mhat)
+        M = self._y[None, :] * sigma[:,None] + mhat[:,None] - x - k[:,None] - mu[:,None]
+        df = self.discovery_fraction(x,M,k,mu,sigma)
+        N_obs = self.N_obs(x,alpha,beta,Lmin,k,mu,sigma)
+        L = abs_mag_to_L(M)/self.L_star
+        phi = self.phi(L,alpha,beta,Lmin)
+        integrand = self.eff(mhat)/df*phi
+        maxintegrand = integrand.max()
+
+        return jnp.log(maxinterand)  + jnp.log((integrand/maxintegrand).sum()) + nquasar*jnp.log(N_obs) - N_obs
+'''
 # uses mean redshift
 class N_obs(object):
     def __init__(self, zmin, zmax):
         self.zmean = (zmin+zmax)/2
         self.desi_fraction = 0.16
-        _, _, self.L_star, phi_star = get_lfpars_shen20(zmean)
-        self.mu = Planck18.distmod(zmean)
+        _, _, self.L_star, phi_star = get_lfpars_shen20(self.zmean)
+        self.mu = Planck18.distmod(self.zmean).value
         self.phi_star_over_ln10 = phi_star/numpy.log(10)
-        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin))
+        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
 
         # Using Laplace's approximation
         # alpha, beta, k, mu, sigma are all an average value for the redshit bin.
@@ -215,10 +241,13 @@ class N_obs(object):
         fmin = 10**((-self.mu-x-k)/2.5)*Lmin
         f0 = 10**(-m0/2.5)
         term1 = f0**b * (
-            f0**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-f0**(alpha-beta))
-            - fmin**(alpha-b+1) * jax.scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-fmin**(alpha-beta))
+            f0**(alpha-b+1) * scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-f0**(alpha-beta))
+            - fmin**(alpha-b+1) * scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-fmin**(alpha-beta))
             )
-        term2 = fmin**(alpha+1) * jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-fmin**(alpha-beta))
+        term2 = fmin**(alpha+1) * scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-fmin**(alpha-beta))
         ans = term1 + term2
+        print(term1)
+        print(term2)
         ans = ans * self.Volume * self.phi_star_over_ln10 / self.L_star
         return ans
+        '''
