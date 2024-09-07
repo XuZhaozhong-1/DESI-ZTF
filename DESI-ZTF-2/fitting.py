@@ -252,29 +252,56 @@ class N_obs(object):
         return ans
 
 # 2F1(1, x, 1+x, z)
-def hyp2f1_special(x, z, buf=2):
+def hyp2f1_special(x, z, buf=10):
+    # choose buf >> abs(x)
     ns = numpy.arange(1,max(0, numpy.ceil(x))+buf,dtype='int')
     terms = x/(x+ns)*z**ns
     ans = 1 + terms.sum()
     return ans
 
-# integral of 1/(L^-alpha + L^-beta)
-def integral_Lmin_infty(L, alpha, beta, approx=True):
-    ans1 = (
+def integral(L, alpha, beta, approx=True):
+    if L==1:
+        ans = (
             0.5 * (1+alpha)/(alpha-beta) * 
             (scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta) + 0.5) - scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta)))
             /(1+alpha)
             )
-    if approx:
-        lower = L**(beta+1)*hyp2f1_special((1+beta)/(beta-alpha),-L**(beta-alpha))/(1+beta)
+    elif numpy.abs(L**(alpha-beta))<1:
+        if approx:
+            ans = L**(alpha+1)*hyp2f1_special((1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
+        else:
+            ans = L**(alpha+1)*scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
     else:
-        lower = L**(beta+1)*scipy.special.hyp2f1(1,(1+beta)/(beta-alpha),1+(1+beta)/(beta-alpha),-L**(beta-alpha))/(1+beta)
-    upper = (
-        0.5 * (1+beta)/(beta-alpha) * 
-        (scipy.special.digamma(0.5 * (1+beta)/(beta-alpha) + 0.5) - scipy.special.digamma(0.5 * (1+beta)/(beta-alpha)))
-        /(1+beta)
-        )
-    ans2 =  upper - lower
-    # print(scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), L, 1000))
-    return ans2- ans1
+        raise Exception("|L**(alpha-beta)|<1 not implemented on purpose")
+    return ans
 
+def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True):
+    ans = 0.
+    if Lmin < 1:
+        ans = ans - integral(Lmin, beta, alpha, approx=approx)
+    elif Lmin >= 1:
+        ans = ans - integral(Lmin, alpha, beta, approx=approx)
+
+    if Lmax != numpy.inf:
+        if Lmax <= 1:
+            ans = ans + integral(Lmax, beta, alpha, approx=approx)
+        elif Lmax > 1:
+            ans = ans + integral(Lmax, alpha, beta, approx=approx)    
+
+    if Lmin < 1 and (Lmax >1 or Lmax == numpy.inf):
+        ans = ans -integral(1, alpha, beta)+integral(1, beta, alpha)
+
+    #constructed from integral from Lmin to 1, 1 to infinity
+    return ans
+
+def test():
+    alpha = -2.3
+    beta = -1.5
+    Lmin=.1
+    Lmax=10
+    print(integral_Lmin_Lmax(Lmin, Lmax, alpha, beta), integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=False))
+    print(scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), Lmin, Lmax))
+    print(integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta), integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, approx=False))
+    print(scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), Lmin, 1000))
+
+# test()
