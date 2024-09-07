@@ -259,6 +259,7 @@ def hyp2f1_special(x, z, buf=10):
     ans = 1 + terms.sum()
     return ans
 
+# integral 1/(L**-alpha+L**-beta) dL
 def integral(L, alpha, beta, approx=True):
     if L==1:
         ans = (
@@ -275,6 +276,7 @@ def integral(L, alpha, beta, approx=True):
         raise Exception("|L**(alpha-beta)|<1 not implemented on purpose")
     return ans
 
+# integral_Lmin^Lmax 1/(L**-alpha+L**-beta) dL
 def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True):
     ans = 0.
     if Lmin < 1:
