@@ -222,3 +222,31 @@ class N_obs(object):
         ans = term1 + term2
         ans = ans * self.Volume * self.phi_star_over_ln10 / self.L_star
         return ans
+
+# 2F1(1, x, 1+x, z)
+def hyp2f1_special(x, z, buf=2):
+    ns = numpy.arange(1,max(0, numpy.ceil(x))+buf,dtype='int')
+    terms = x/(x+ns)*z**ns
+    ans = 1 + terms.sum()
+    return ans
+
+# integral of 1/(L^-alpha + L^-beta)
+def integral_Lmin_infty(L, alpha, beta, approx=True):
+    ans1 = (
+            0.5 * (1+alpha)/(alpha-beta) * 
+            (scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta) + 0.5) - scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta)))
+            /(1+alpha)
+            )
+    if approx:
+        lower = L**(beta+1)*hyp2f1_special((1+beta)/(beta-alpha),-L**(beta-alpha))/(1+beta)
+    else:
+        lower = L**(beta+1)*scipy.special.hyp2f1(1,(1+beta)/(beta-alpha),1+(1+beta)/(beta-alpha),-L**(beta-alpha))/(1+beta)
+    upper = (
+        0.5 * (1+beta)/(beta-alpha) * 
+        (scipy.special.digamma(0.5 * (1+beta)/(beta-alpha) + 0.5) - scipy.special.digamma(0.5 * (1+beta)/(beta-alpha)))
+        /(1+beta)
+        )
+    ans2 =  upper - lower
+    # print(scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), L, 1000))
+    return ans2- ans1
+ 
