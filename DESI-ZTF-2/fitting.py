@@ -277,7 +277,7 @@ def integral(L, alpha, beta, approx=True):
     return ans
 
 # integral_Lmin^Lmax 1/(L**-alpha+L**-beta) dL
-def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True):
+def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True, check=False):
     ans = 0.
     if Lmin < 1:
         ans = ans - integral(Lmin, beta, alpha, approx=approx)
@@ -293,6 +293,8 @@ def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True):
     if Lmin < 1 and (Lmax >1 or Lmax == numpy.inf):
         ans = ans -integral(1, alpha, beta)+integral(1, beta, alpha)
 
+    if check:
+        print(ans, scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), Lmin, Lmax))    
     #constructed from integral from Lmin to 1, 1 to infinity
     return ans
 
