@@ -224,7 +224,7 @@ class ln_posterior(object):
         maxintegrand = integrand.max()
 
         return jnp.log(maxinterand)  + jnp.log((integrand/maxintegrand).sum()) + nquasar*jnp.log(N_obs) - N_obs
-'''
+
 # uses mean redshift
 class N_obs(object):
     def __init__(self, zmin, zmax):
@@ -250,4 +250,63 @@ class N_obs(object):
         print(term2)
         ans = ans * self.Volume * self.phi_star_over_ln10 / self.L_star
         return ans
-        '''
+
+# 2F1(1, x, 1+x, z)
+def hyp2f1_special(x, z, buf=10):
+    # choose buf >> abs(x)
+    ns = numpy.arange(1,max(0, numpy.ceil(x))+buf,dtype='int')
+    terms = x/(x+ns)*z**ns
+    ans = 1 + terms.sum()
+    return ans
+
+# integral 1/(L**-alpha+L**-beta) dL
+# convention is alpha < beta
+def integral(L, alpha, beta, approx=True):
+    if L==1:
+        ans = (
+            0.5 * (1+alpha)/(alpha-beta) * 
+            (scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta) + 0.5) - scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta)))
+            /(1+alpha)
+            )
+    elif numpy.abs(L**(alpha-beta))<1:
+        if approx:
+            ans = L**(alpha+1)*hyp2f1_special((1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
+        else:
+            ans = L**(alpha+1)*scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
+    else:
+        raise Exception("|L**(alpha-beta)|<1 not implemented on purpose")
+    return ans
+
+# integral_Lmin^Lmax 1/(L**-alpha+L**-beta) dL
+# convention is alpha < beta
+def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True, check=False):
+    ans = 0.
+    if Lmin < 1:
+        ans = ans - integral(Lmin, beta, alpha, approx=approx)
+    elif Lmin >= 1:
+        ans = ans - integral(Lmin, alpha, beta, approx=approx)
+
+    if Lmax != numpy.inf:
+        if Lmax <= 1:
+            ans = ans + integral(Lmax, beta, alpha, approx=approx)
+        elif Lmax > 1:
+            ans = ans + integral(Lmax, alpha, beta, approx=approx)    
+
+    if Lmin < 1 and (Lmax >1 or Lmax == numpy.inf):
+        ans = ans -integral(1, alpha, beta)+integral(1, beta, alpha)
+
+    if check:
+        print(ans, scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), Lmin, Lmax))    
+    #constructed from integral from Lmin to 1, 1 to infinity
+    return ans
+
+def test():
+    alpha = -2.3
+    beta = -1.5
+    Lmin=.1
+    Lmax=10
+    print(integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=False))
+    print(integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, approx=False))
+
+
+# test()
