@@ -303,9 +303,8 @@ def test():
     beta = -1.5
     Lmin=.1
     Lmax=10
-    print(integral_Lmin_Lmax(Lmin, Lmax, alpha, beta), integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=False))
-    print(scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), Lmin, Lmax))
-    print(integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta), integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, approx=False))
-    print(scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), Lmin, 1000))
+    print(integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=False))
+    print(integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, approx=False))
+
 
 # test()
