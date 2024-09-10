@@ -252,7 +252,7 @@ class N_obs(object):
         return ans
 
 # 2F1(1, x, 1+x, z)
-def hyp2f1_special(x, z, buf=10):
+def hyp2f1_special(x, z, buf=3):
     # choose buf >> abs(x)
     ns = numpy.arange(1,max(0, numpy.ceil(x))+buf,dtype='int')
     terms = x/(x+ns)*z**ns
@@ -301,12 +301,15 @@ def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True, check=False):
     return ans
 
 def test():
-    alpha = -2.3
-    beta = -1.5
+    n=1
+    beta = -(0.411+1)
+    alpha = -(2.487+1)
+
+    # beta = (1+2*alpha*(1+n))/(n+1)
+    print(alpha,beta)
     Lmin=.1
-    Lmax=10
-    print(integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=False))
+    # Lmax=10
+    # print(integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=False))
     print(integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, numpy.inf, alpha, beta, approx=False))
 
-
-# test()
+test()
