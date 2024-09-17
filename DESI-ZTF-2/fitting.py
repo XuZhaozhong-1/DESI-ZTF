@@ -250,7 +250,7 @@ class N_obs(object):
         print(term2)
         ans = ans * self.Volume * self.phi_star_over_ln10 / self.L_star
         return ans
-
+'''
 # 2F1(1, x, 1+x, z)
 def hyp2f1_special(x, z, buf=3):
     # choose buf >> abs(x)
@@ -258,23 +258,64 @@ def hyp2f1_special(x, z, buf=3):
     terms = x/(x+ns)*z**ns
     ans = 1 + terms.sum()
     return ans
+'''
 
+# 2F1(1,x,1+x,z)
+def hyp2f1_special(x,z,buf=10):
+	# z != -1
+	def non_neg1_case(_):
+		ns = jnp.arange(1,buf,dtype='int')
+		terms = x/(x+ns)*z**ns
+		ans = 1 + terms.sum()
+		return ans
+	# z = -1
+        def neg1_case(_):
+		return 0.5*x*(jax.scipy.special.polygamma(0, 0.5*(x+1))-jax.scipy.special.polygamma(0, 0.5*x))
+
+'''
 # integral 1/(L**-alpha+L**-beta) dL
 # convention is alpha < beta
 def integral(L, alpha, beta, approx=True):
     if L==1:
         ans = (
             0.5 * (1+alpha)/(alpha-beta) * 
-            (scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta) + 0.5) - scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta)))
+            (jax.scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta) + 0.5) - jax.scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta)))
             /(1+alpha)
             )
     elif numpy.abs(L**(alpha-beta))<1:
         if approx:
             ans = L**(alpha+1)*hyp2f1_special((1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
         else:
-            ans = L**(alpha+1)*scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
+            ans = L**(alpha+1)*jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
     else:
         raise Exception("|L**(alpha-beta)|<1 not implemented on purpose")
+    return ans
+    '''
+def integral(L, alpha, beta, approx=True):
+    def case_L_1(args):
+        L, alpha, beta = args
+        return (
+            0.5 * (1 + alpha) / (alpha - beta) *
+            (jax.scipy.special.digamma(0.5 * (1 + alpha) / (alpha - beta) + 0.5) -
+             jax.scipy.special.digamma(0.5 * (1 + alpha) / (alpha - beta)))
+            / (1 + alpha)
+        )
+    
+    def case_L_small(args):
+        L, alpha, beta, approx = args
+        if approx:
+            return L**(alpha + 1) * hyp2f1_special((1 + alpha) / (alpha - beta), -L**(alpha - beta)) / (1 + alpha)
+        else:
+            return L**(alpha + 1) * jax.scipy.special.hyp2f1(1, (1 + alpha) / (alpha - beta), 1 + (1 + alpha) / (alpha - beta), -L**(alpha - beta)) / (1 + alpha)
+
+    def case_error(args):
+        raise Exception("|L**(alpha-beta)|<1 not implemented on purpose")
+    
+    # Using jax.lax.cond to control the flow
+    ans = lax.cond(L == 1, case_L_1, 
+                   lambda args: lax.cond(numpy.abs(L**(alpha - beta)) < 1, case_L_small, case_error, (L, alpha, beta, approx)), 
+                   (L, alpha, beta))
+    
     return ans
 
 # integral_Lmin^Lmax 1/(L**-alpha+L**-beta) dL
