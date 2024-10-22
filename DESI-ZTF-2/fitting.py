@@ -136,11 +136,15 @@ class phi(object):
         norm = -(Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)) * (1/(L**((beta-alpha)/2) + L**((-beta-alpha)/2))).mean()
         return 1/(_L**(-alpha) + _L**(-beta))/norm
 
-# designed for 
-def phi_new(L, alpha, beta, Lmin):
-    norm = Lmin**(alpha+1) * hyp2f1((1+alpha)/(alpha-beta),-Lmin**(alpha-beta))
-    return 1/(L**(-alpha) + L**(-beta))/norm
+# designed for alpha > beta
+#def phi_new(L, alpha, beta, Lmin):
+#    norm = Lmin**(alpha+1) * hyp2f1((1+alpha)/(alpha-beta),-Lmin**(alpha-beta))
+#    return 1/(L**(-alpha) + L**(-beta))/norm
 	
+def phi_new(L,alpha,beta,Lmin):
+    norm = integral_Lmin_Lmax(Lmin, jnp.inf, beta, alpha)
+    phi = 1/(L**(-alpha)+L**(-beta))/norm
+    return phi
 #class N_obs(object):
 #    def __init__(self, zmin, zmax, eff, Nsamples=1000):
 #        self.desi_fraction = 0.16
@@ -180,7 +184,7 @@ def phi_new(L, alpha, beta, Lmin):
 #        return ans
 
 class discovery_fraction(object):
-    def __init__(self, eff, Nsamples=1000, key=None):
+    def __init__(self, eff, Nsamples=50, key=None):
         if key is None:
             key = jax.random.PRNGKey(0)  # Initialize a key if none is provided
         self.key = key
@@ -188,8 +192,8 @@ class discovery_fraction(object):
         self.eff = eff
 
     def __call__(self, x, M, k, mu,sigma):
-        m = self._y[None,:] * sigma[:,None] + M[:,None] + x+ k[:,None] + mu[:,None]
-        return self.eff(m).mean(axis=1)
+        m = self._y[:,None,None] * sigma + M + x+ k + mu
+        return self.eff(m).mean(axis=0)
     
 
 
@@ -201,32 +205,50 @@ def discovery_fraction_exp(m0,b,mbar,sigma):
     # integrate.quad(lambda m: (1 if m<m0 else 10**(-b*(m-m0)/2.5)) /numpy.sqrt(2*numpy.pi)/sigma*numpy.exp(-(m-mbar)**2/2/sigma**2), -100,100)
     ans = (
         jax.scipy.stats.norm.cdf(m0,mbar,sigma) 
-        + sigma/2*jnp.exp(coeff/2*(2*m0+coeff*sigma**2-2*mbar)) 
+        + 1/2*jnp.exp(coeff/2*(2*m0+coeff*sigma**2-2*mbar)) 
         * jax.scipy.special.erfc((m0+coeff*sigma**2-mbar)/jnp.sqrt(2)/sigma))
+    #print(sigma/2*jnp.exp(coeff/2*(2*m0+coeff*sigma**2-2*mbar)))
     return ans
+
+def df_analytic(m0,b,mbar,sigma):
+    coeff1 = 1/(2*sigma**2)
+    coeff2 = jnp.log(10)*b/2.5
+    term1 = jax.scipy.stats.norm.cdf(m0,mbar,sigma)
+    term2 = 10**(b/2.5*(m0-mbar))/(jnp.sqrt(2)*sigma)*jnp.exp(coeff2**2/4/coeff1)/2/jnp.sqrt(coeff1)
+    term3 = 10**(b/2.5*(m0-mbar))/(jnp.sqrt(2)*sigma)*jnp.exp(coeff2**2/4/coeff1)*jax.scipy.special.erf((2*coeff1*(m0-mbar)+coeff2)/2/jnp.sqrt(coeff1))/2/jnp.sqrt(coeff1)
+    #print(term2)
+    return term1 + term2 - term3
+    
 
 
 class ln_posterior(object):
-    def __init__(self, eff,zmin=2.3, zmax=2.31, Nsamples=1000,key = jax.random.PRNGKey(0)):
+    def __init__(self, eff,zmin=2.3, zmax=2.4, Nsamples=1000,key = jax.random.PRNGKey(0)):
         self._y = jax.random.normal(key, (Nsamples,))
         self.eff = eff
         #self.discovery_fraction = discovery_fraction(eff)
         #self.phi = phi()
         self.N_obs = N_obs(zmin,zmax)
-        _, _, self.L_star, phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.gamma1, self.gamma2, self.L_star, phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.alpha = -(self.gamma1+1)
+        self.beta = -(self.gamma2+1)
 
-    def __call__(self, m0, b, x, alpha,beta,mhat, k, mu,sigma):
+    def __call__(self, m0, b, x, mhat, k, mu,sigma,Lmin):
         nquasar=len(mhat)
-        Lmin = 0.1
         M = self._y[:,None] * sigma + mhat - x - k - mu
-        df = discovery_fraction_exp(m0,b,mhat,sigma)
-        N_obs = self.N_obs(m0, b, x, alpha, beta, Lmin,k)
+        df = df_analytic(m0,b,M+x+k+mu,sigma)
+        #df = self.discovery_fraction(x,M,k,mu,sigma)
+        N_obs = self.N_obs(m0, b, x, self.alpha, self.beta, Lmin,k)
         L = abs_mag_to_L(M)/self.L_star
-        phi = phi_new(L,alpha,beta,Lmin)
-        integrand = (self.eff(mhat)/df*phi).mean(axis=0)
-        maxintegrand = integrand.max()
-
-        return nquasar*jnp.log(maxintegrand)  + jnp.log(integrand/maxintegrand).sum() + nquasar*jnp.log(N_obs) - N_obs
+        phi = phi_new(L,self.alpha,self.beta,Lmin)
+        #integrand = self.eff(mhat)/df*phi
+        #temp = integrand.prod(axis=1)
+        #maxtemp = temp.max()
+        integral = (self.eff(mhat,b,m0)/df*phi).mean(axis=0)
+        print(f"first term {(jnp.log(integral)).sum()}")
+        print(f"Poisson term {nquasar*jnp.log(N_obs) - N_obs}")
+        print(f"N_obs {N_obs}")
+        return (jnp.log(integral)).sum() + nquasar*jnp.log(N_obs) - N_obs
+        #return jnp.log(maxtemp) + jnp.log((temp/maxtemp).sum()) + nquasar*jnp.log(N_obs) - N_obs
 
 # uses mean redshift
 #class N_obs(object):
@@ -407,6 +429,12 @@ def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta):
 
     return ans
 
+def integral_numerical(Lmin,Lmax,alpha,beta,Nsamples=100):
+    new_L = jnp.linspace(Lmin,Lmax,Nsamples)
+    integrand = 1/(new_L**-alpha+new_L**-beta)
+    integral = jnp.trapezoid(integrand,new_L)
+    return integral
+
 def test():
     n=1
     beta = -(0.411+1)
@@ -435,11 +463,10 @@ class N_obs(object):
         # alpha, beta, k, mu, sigma are all an average value for the redshit bin
     def __call__(self, m0, b, x, alpha, beta, Lmin,k):
         L0 = abs_mag_to_L(m0 - k.mean() - self.mu - x)/self.L_star
-        const1 = self.Volume*self.phi_star_over_ln10*10**(-b*(x+k.mean()+self.mu-m0)/2.5)
+        L_0 = const.L_bol0.to(units.erg / units.s).value
+        const1 = self.Volume*self.phi_star_over_ln10*10**(-b*(x+k.mean()+self.mu-m0)/2.5)*(L_0/self.L_star)**(-b)
         const2 = self.Volume*self.phi_star_over_ln10
-        term1 = const1*integral_Lmin_Lmax(Lmin, L0, beta, alpha)
+        term1 = const1*integral_Lmin_Lmax(Lmin, L0, beta+b, alpha+b)
         term2 = const2*integral_Lmin_Lmax(L0,jnp.inf,beta, alpha)
-        #print(integral_Lmin_Lmax(Lmin, L0, beta, alpha))
-        #print(integral_Lmin_Lmax(L0,jnp.inf,beta, alpha))
         ans = term1 + term2
         return ans
