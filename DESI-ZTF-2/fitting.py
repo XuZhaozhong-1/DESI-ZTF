@@ -243,13 +243,13 @@ class ln_posterior(object):
         #integrand = self.eff(mhat)/df*phi
         #temp = integrand.prod(axis=1)
         #maxtemp = temp.max()
-        integral = (self.eff(mhat,b,m0)/df*phi).mean(axis=0)
-        print(f"first term {(jnp.log(integral)).sum()}")
-        print(f"Poisson term {nquasar*jnp.log(N_obs) - N_obs}")
-        print(f"N_obs {N_obs}")
+        integral = (self.eff(mhat,b,m0)/df*phi*0.4*jnp.log(10)*L).mean(axis=0)
+        #print(f"first term {(jnp.log(integral)).sum()}")
+        #print(f"Poisson term {nquasar*jnp.log(N_obs) - N_obs}")
+        #print(f"N_obs {N_obs}")
         return (jnp.log(integral)).sum() + nquasar*jnp.log(N_obs) - N_obs
         #return jnp.log(maxtemp) + jnp.log((temp/maxtemp).sum()) + nquasar*jnp.log(N_obs) - N_obs
-
+    
 # uses mean redshift
 #class N_obs(object):
 #    def __init__(self, zmin, zmax):
@@ -470,3 +470,29 @@ class N_obs(object):
         term2 = const2*integral_Lmin_Lmax(L0,jnp.inf,beta, alpha)
         ans = term1 + term2
         return ans
+    
+class N_exp(object):
+    def __init__(self, zmin, zmax,Nsamples=1000,key = jax.random.PRNGKey(0)):
+        self._y = jax.random.uniform(key, (Nsamples,))
+        self.zmean = (zmin+zmax)/2
+        self.desi_fraction = 0.16
+        _, _, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
+        self.mu = Planck18.distmod(self.zmean).value
+        self.phi_star_over_ln10 = self.phi_star/jnp.log(10)
+        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
+        
+    def __call__(self,m0,b,x,alpha,beta,Mmin,Mmax,k,mu,sigma):
+        M = self._y*(Mmax - Mmin) + Mmin
+        L = abs_mag_to_L(M)/self.L_star
+        const1 = 0.2*self.Volume*self.phi_star
+        const2 = 10**(b*m0/2.5)*10**(b/5*(2*(x+k.mean()+mu.mean())+b/2.5*jnp.log(10)*sigma.mean()**2))
+        integrand1 = jax.scipy.special.erfc((M+x+k.mean()+mu.mean()-m0)/jnp.sqrt(2)/sigma.mean())/(L**(-(alpha+1))+L**(-(beta+1)))
+        integrand2 = jax.scipy.special.erfc((m0-M-x-k.mean()-mu.mean()-b/2.5*jnp.log(10)*sigma.mean()**2)/jnp.sqrt(2)/sigma.mean())*10**(b*M/2.5)/(L**(-(alpha+1))+L**(-(beta+1)))
+        integral1 = jnp.trapezoid(integrand1,x=M,axis=0)
+        integral2 = jnp.trapezoid(integrand2,x=M,axis=0)
+        print(integral1)
+        print(integral2)
+        print(const1)
+        print(const2)
+        result = const1*integral1+const1*const2*integral2
+        return result
