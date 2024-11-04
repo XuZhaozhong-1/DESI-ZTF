@@ -232,10 +232,11 @@ class ln_posterior(object):
         self.alpha = -(self.gamma1+1)
         self.beta = -(self.gamma2+1)
 
-    def __call__(self, m0, b, x, mhat, k, mu,sigma,Lmin):
+    def __call__(self, m0, b, x, mhat, k, mu,sigma):
         nquasar=len(mhat)
         M = self._y[:,None] * sigma + mhat - x - k - mu
         df = df_analytic(m0,b,M+x+k+mu,sigma)
+        Lmin = abs_mag_to_L(mhat.max()-k.mean()-mu.mean()-x)/self.L_star
         #df = self.discovery_fraction(x,M,k,mu,sigma)
         N_obs = self.N_obs(m0, b, x, self.alpha, self.beta, Lmin,k)
         L = abs_mag_to_L(M)/self.L_star
@@ -243,10 +244,11 @@ class ln_posterior(object):
         #integrand = self.eff(mhat)/df*phi
         #temp = integrand.prod(axis=1)
         #maxtemp = temp.max()
+        #integral = (self.eff(mhat,b,m0)/df*phi*0.4*jnp.log(10)*L).mean(axis=0)
         integral = (self.eff(mhat,b,m0)/df*phi*0.4*jnp.log(10)*L).mean(axis=0)
-        #print(f"first term {(jnp.log(integral)).sum()}")
-        #print(f"Poisson term {nquasar*jnp.log(N_obs) - N_obs}")
-        #print(f"N_obs {N_obs}")
+        print(f"first term {(jnp.log(integral)).sum()}")
+        print(f"Poisson term {nquasar*jnp.log(N_obs) - N_obs}")
+        print(f"N_obs {N_obs}")
         return (jnp.log(integral)).sum() + nquasar*jnp.log(N_obs) - N_obs
         #return jnp.log(maxtemp) + jnp.log((temp/maxtemp).sum()) + nquasar*jnp.log(N_obs) - N_obs
     
