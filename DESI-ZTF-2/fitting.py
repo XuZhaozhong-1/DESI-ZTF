@@ -237,8 +237,9 @@ class ln_posterior(object):
         M = self._y[:,None] * sigma + mhat - x - k - mu
         df = df_analytic(m0,b,M+x+k+mu,sigma)
         Lmin = abs_mag_to_L(mhat.max()-k.mean()-mu.mean()-x)/self.L_star
+        Lmax = abs_mag_to_L(mhat.min()-k.mean()-mu.mean()-x)/self.L_star
         #df = self.discovery_fraction(x,M,k,mu,sigma)
-        N_obs = self.N_obs(m0, b, x, self.alpha, self.beta, Lmin,k)
+        N_obs = self.N_obs(m0, b, x, self.alpha, self.beta, Lmin,Lmax,k)
         L = abs_mag_to_L(M)/self.L_star
         phi = phi_new(L,self.alpha,self.beta,Lmin)
         #integrand = self.eff(mhat)/df*phi
@@ -463,38 +464,13 @@ class N_obs(object):
 
         # Using Laplace's approximation
         # alpha, beta, k, mu, sigma are all an average value for the redshit bin
-    def __call__(self, m0, b, x, alpha, beta, Lmin,k):
+    def __call__(self, m0, b, x, alpha, beta, Lmin,Lmax,k):
         L0 = abs_mag_to_L(m0 - k.mean() - self.mu - x)/self.L_star
         L_0 = const.L_bol0.to(units.erg / units.s).value
         const1 = self.Volume*self.phi_star_over_ln10*10**(-b*(x+k.mean()+self.mu-m0)/2.5)*(L_0/self.L_star)**(-b)
         const2 = self.Volume*self.phi_star_over_ln10
         term1 = const1*integral_Lmin_Lmax(Lmin, L0, beta+b, alpha+b)
-        term2 = const2*integral_Lmin_Lmax(L0,jnp.inf,beta, alpha)
+        #term2 = const2*integral_Lmin_Lmax(L0,jnp.inf,beta, alpha)
+        term2 = const2*integral_Lmin_Lmax(L0,Lmax,beta, alpha)
         ans = term1 + term2
         return ans
-    
-class N_exp(object):
-    def __init__(self, zmin, zmax,Nsamples=1000,key = jax.random.PRNGKey(0)):
-        self._y = jax.random.uniform(key, (Nsamples,))
-        self.zmean = (zmin+zmax)/2
-        self.desi_fraction = 0.16
-        _, _, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
-        self.mu = Planck18.distmod(self.zmean).value
-        self.phi_star_over_ln10 = self.phi_star/jnp.log(10)
-        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
-        
-    def __call__(self,m0,b,x,alpha,beta,Mmin,Mmax,k,mu,sigma):
-        M = self._y*(Mmax - Mmin) + Mmin
-        L = abs_mag_to_L(M)/self.L_star
-        const1 = 0.2*self.Volume*self.phi_star
-        const2 = 10**(b*m0/2.5)*10**(b/5*(2*(x+k.mean()+mu.mean())+b/2.5*jnp.log(10)*sigma.mean()**2))
-        integrand1 = jax.scipy.special.erfc((M+x+k.mean()+mu.mean()-m0)/jnp.sqrt(2)/sigma.mean())/(L**(-(alpha+1))+L**(-(beta+1)))
-        integrand2 = jax.scipy.special.erfc((m0-M-x-k.mean()-mu.mean()-b/2.5*jnp.log(10)*sigma.mean()**2)/jnp.sqrt(2)/sigma.mean())*10**(b*M/2.5)/(L**(-(alpha+1))+L**(-(beta+1)))
-        integral1 = jnp.trapezoid(integrand1,x=M,axis=0)
-        integral2 = jnp.trapezoid(integrand2,x=M,axis=0)
-        print(integral1)
-        print(integral2)
-        print(const1)
-        print(const2)
-        result = const1*integral1+const1*const2*integral2
-        return result
