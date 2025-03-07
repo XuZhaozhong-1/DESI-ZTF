@@ -291,7 +291,7 @@ class ln_posterior(object):
         self.alpha = -(self.gamma2+1)
 
     def __call__(self, m0, c, x, mhat, k, mu,sigma,fraction):
-        b = c*m0
+        b = jnp.exp(c)/m0
         nquasar=len(mhat)
         M = self._y[:,None] * sigma + mhat - x - k - mu
         #df = df_analytic(m0,b,M+x+k+mu,sigma)
