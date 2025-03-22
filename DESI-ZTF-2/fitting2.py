@@ -369,7 +369,7 @@ class ln_posterior(object):
         print(N_Total)
         term1 = -Prob_detection * N_Total
         term2 = jnp.sum(jnp.log(Prob_mag))
-        term3 = jnp.sum(efficiency)
+        term3 = jnp.sum(jnp.log(efficiency))
 
         return term1+term2+term3
         
