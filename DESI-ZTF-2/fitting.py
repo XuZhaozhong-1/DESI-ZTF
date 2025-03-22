@@ -316,7 +316,7 @@ class ln_posterior(object):
         #print(f"N_obs {N_obs}")
         #return (jnp.log(integral)).sum()
         #return nquasar*jnp.log(N_obs) - N_obs
-        return (jnp.log(integral)).sum() + nquasar*jnp.log(N_obs) - N_obs
+        return (jnp.log(integral)).sum() + nquasar*jnp.log(N_obs) - N_obs + (N_obs-nquasar)*jnp.log(N_obs-nquasar) - N_obs*jnp.log(N_obs)
         #return jnp.log(maxtemp) + jnp.log((temp/maxtemp).sum()) + nquasar*jnp.log(N_obs) - N_obs
         
 class check_ln_posterior(object):
