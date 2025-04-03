@@ -356,20 +356,24 @@ class ln_posterior(object):
         self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
 
     def __call__(self,m0,b,x,mhat,k,mu,fraction):
+        nsamples = len(mhat)
+        #Lmin = 1e-4
         Lmin = abs_mag_to_L(mhat.max()-k.mean()-x-mu.mean())/self.L_star
         denominator_term = self.denominator(Lmin)
+        denominator_term_Ntot = self.denominator(1e-4)
         Prob_detection = self.Prob_det(m0,b,x,k,mu,Lmin,denominator_term)
         Prob_mag = self.Prob_m(mhat,x,k,mu,denominator_term)
         efficiency = self.eff(mhat,b,m0)
-        N_Total = self.Volume*denominator_term*fraction
-        print(Prob_detection)
-        print(self.Volume)
-        print(denominator_term)
-        print(fraction)
-        print(N_Total)
+        N_Total = self.Volume*denominator_term_Ntot*fraction
+        #print(Prob_detection)
+        #print(self.Volume)
+        #print(denominator_term)
+        #print(fraction)
+        #print(N_Total)
         term1 = -Prob_detection * N_Total
         term2 = jnp.sum(jnp.log(Prob_mag))
         term3 = jnp.sum(jnp.log(efficiency))
+        #term4 = nsamples*jnp.log(N_Total)
 
-        return term1+term2+term3
+        return term1 + term2 + term3
         
