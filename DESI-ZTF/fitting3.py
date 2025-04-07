@@ -299,10 +299,7 @@ def test():
     print(integral_Lmin_Lmax(Lmin, jnp.inf, alpha, beta, check=True), integral_Lmin_Lmax(Lmin, jnp.inf, alpha, beta, approx=False))
 
 #test()
-def mtoL(m,x,k,mu,sigma,alpha,L_star):
-    M = m-x-k-mu-alpha*sigma**2*jnp.log(10)/2.5
-    L = abs_mag_to_L(M)/L_star
-    return L
+
 class denominator(object):
     def __init__(self,zmin,zmax):
         self.zmean = (zmin+zmax)/2
@@ -311,34 +308,70 @@ class denominator(object):
         self.beta = -(self.gamma2+1)
         self.phi_star_over_ln10 = self.phi_star/jnp.log(10)
 
-    def __call__(self,Lmin):
-        ans = self.phi_star_over_ln10 * integral_Lmin_Lmax(Lmin,jnp.inf,self.beta,self.alpha)
+    def __call__(self,Lmin,alpha,beta):
+        ans = self.phi_star_over_ln10 * integral_Lmin_Lmax(Lmin,jnp.inf,beta,alpha)
         return ans
 
-class ln_posterior(object):
-    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4):
-        self.eff = eff
-        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
+class Prob_m(object):
+    def __init__(self,zmin,zmax):
+        self.zmean = (zmin+zmax)/2
+        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
         self.alpha = -(self.gamma1+1)
         self.beta = -(self.gamma2+1)
-        self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
-        self.denominator = denominator(zmin,zmax)
 
-    def __call__(self,m0,b,x,mhat,k,mu,sigma,fraction):
-        nquasars = len(mhat)
-        Lmin = mtoL(mhat.max(),x,k.mean(),mu.mean(),sigma.mean(),self.alpha,self.L_star)
-        L1 = mtoL(m0,x,k.mean(),mu.mean(),sigma.mean(),self.alpha,self.L_star)
-        #const1 = -fraction*self.Volume*self.phi_star/jnp.log(10)*jnp.exp(-0.5*(self.alpha*jnp.log(10)*sigma.mean()/2.5)**2)*10**(b/2.5*(m0-x-k.mean()-mu.mean()-self.alpha*sigma.mean()**2*jnp.log(10)/2.5))
-        const1 = -fraction*self.Volume*self.phi_star/jnp.log(10)*jnp.exp(-0.5*(self.alpha*jnp.log(10)*sigma.mean()/2.5)**2)*10**(b/2.5*(m0-x-k.mean()-mu.mean()-self.alpha*sigma.mean()**2*jnp.log(10)/2.5))
-        #const2 = -fraction*self.Volume*self.phi_star/jnp.log(10)*jnp.exp(-0.5*(self.alpha*jnp.log(10)*sigma.mean()/2.5)**2)
-        term1 = const1*integral_Lmin_Lmax(Lmin, L1, self.beta+b, self.alpha+b)
-        term2 = const2*integral_Lmin_Lmax(L1,jnp.inf,self.beta, self.alpha)
-        L = mtoL(mhat,x,k,mu,sigma,self.alpha,self.L_star)
-        PhiL = self.phi_star/jnp.log(10)/(L**-(self.alpha-1)+L**(-self.beta-1))
+    def __call__(self,mhat,x,k,mu,denominator,alpha,beta):
+        L = abs_mag_to_L(mhat-k-x-mu)/self.L_star
+        numerator = 0.4*self.phi_star/(L**(-alpha-1)+L**(-beta-1))
+        return numerator / denominator
+
+class Prob_det(object):
+    def __init__(self,zmin,zmax):
+        self.zmean = (zmin+zmax)/2
+        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
+        self.alpha = -(self.gamma1+1)
+        self.beta = -(self.gamma2+1)
+
+    def __call__(self,m0,b,x,k,mu,Lmin,denominator,alpha,beta):
+        L1 = abs_mag_to_L(m0-k.mean()-x-mu.mean())/self.L_star
+        const1 = (1/denominator)*self.phi_star/jnp.log(10)*10**(b*(m0-x-k.mean()-mu.mean())/2.5)
+        const2 = (1/denominator)*self.phi_star/jnp.log(10)
+        term1 = const1*integral_Lmin_Lmax(Lmin, L1, beta+b, alpha+b)
+        term2 = const2*integral_Lmin_Lmax(L1,jnp.inf,beta, alpha)
+        ans = term1 + term2
+        #print(const1)
+        #print(const2)
+        return ans
+
+
+class ln_posterior(object):
+    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4,Lmin=0.01):
+        self.Lmin = Lmin
+        self.eff = eff
+        self.gamma1, self.gamma2, self.L_star, phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.denominator = denominator(zmin,zmax)
+        self.Prob_m = Prob_m(zmin,zmax)
+        self.Prob_det = Prob_det(zmin,zmax)
+        self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
+
+    def __call__(self,m0,b,x,mhat,k,mu,alpha,beta,fraction):
+        nsamples = len(mhat)
+        #Lmin = 1e-4
+        Lmin = abs_mag_to_L(mhat.max()-k.mean()-x-mu.mean())/self.L_star
+        denominator_term = self.denominator(Lmin,alpha,beta)
+        denominator_term_Ntot = self.denominator(5*1e-1,alpha,beta)
+        Prob_detection = self.Prob_det(m0,b,x,k,mu,Lmin,denominator_term,alpha,beta)
+        Prob_mag = self.Prob_m(mhat,x,k,mu,denominator_term,alpha,beta)
         efficiency = self.eff(mhat,b,m0)
-        term3 = jnp.sum(jnp.log(PhiL))+jnp.sum(jnp.log(efficiency))
-        denominator_term = self.denominator(Lmin)
-        #print(self.alpha*sigma.mean()**2*jnp.log(10)/2.5)
-        
-        return term1 + term2 + term3 - nquasars*jnp.log(denominator_term)
+        N_Total = self.Volume*denominator_term_Ntot*fraction
+        #print(Prob_detection)
+        #print(self.Volume)
+        #print(denominator_term)
+        #print(fraction)
+        #print(N_Total)
+        term1 = -Prob_detection * N_Total
+        term2 = jnp.sum(jnp.log(Prob_mag))
+        term3 = jnp.sum(jnp.log(efficiency))
+        #term4 = nsamples*jnp.log(N_Total)
+
+        return term1 + term2 + term3
         

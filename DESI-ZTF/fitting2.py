@@ -348,8 +348,6 @@ class ln_posterior(object):
         self.Lmin = Lmin
         self.eff = eff
         self.gamma1, self.gamma2, self.L_star, phi_star = get_lfpars_shen20((zmin+zmax)/2)
-        self.alpha = -(self.gamma1+1)
-        self.beta = -(self.gamma2+1)
         self.denominator = denominator(zmin,zmax)
         self.Prob_m = Prob_m(zmin,zmax)
         self.Prob_det = Prob_det(zmin,zmax)
@@ -360,7 +358,7 @@ class ln_posterior(object):
         #Lmin = 1e-4
         Lmin = abs_mag_to_L(mhat.max()-k.mean()-x-mu.mean())/self.L_star
         denominator_term = self.denominator(Lmin)
-        denominator_term_Ntot = self.denominator(1e-4)
+        denominator_term_Ntot = self.denominator(1e-3)
         Prob_detection = self.Prob_det(m0,b,x,k,mu,Lmin,denominator_term)
         Prob_mag = self.Prob_m(mhat,x,k,mu,denominator_term)
         efficiency = self.eff(mhat,b,m0)
