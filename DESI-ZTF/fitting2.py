@@ -13,7 +13,7 @@ import numpy
 import jax.lax as lax
 import jax.numpy as jnp
 from astropy.constants import L_sun
-
+from jax import jit
 
 def abs_mag_to_L(M):
     """
@@ -300,78 +300,89 @@ def test():
 
 #test()
 
-class denominator(object):
-    def __init__(self,zmin,zmax):
-        self.zmean = (zmin+zmax)/2
-        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
-        self.alpha = -(self.gamma1+1)
-        self.beta = -(self.gamma2+1)
-        self.phi_star_over_ln10 = self.phi_star/jnp.log(10)
+#class denominator(object):
+#    def __init__(self,zmin,zmax):
+#        self.zmean = (zmin+zmax)/2
+#        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
+#        self.alpha = -(self.gamma1+1)
+#        self.beta = -(self.gamma2+1)
+#        self.phi_star_over_ln10 = self.phi_star/jnp.log(10)
+#
+#    def __call__(self,Lmin):
+#        ans = self.phi_star_over_ln10 * integral_Lmin_Lmax(Lmin,jnp.inf,self.beta,self.alpha)
+#        return ans
 
-    def __call__(self,Lmin):
-        ans = self.phi_star_over_ln10 * integral_Lmin_Lmax(Lmin,jnp.inf,self.beta,self.alpha)
-        return ans
+def num(mhat,x,k,mu,alpha,beta,L_star,phi_star):
+    L = abs_mag_to_L(mhat-k-x-mu)/L_star
+    numerator = 0.4*phi_star/(L**(-alpha-1)+L**(-beta-1))
+    return numerator
 
-class Prob_m(object):
-    def __init__(self,zmin,zmax):
-        self.zmean = (zmin+zmax)/2
-        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
-        self.alpha = -(self.gamma1+1)
-        self.beta = -(self.gamma2+1)
-
-    def __call__(self,mhat,x,k,mu,denominator):
-        L = abs_mag_to_L(mhat-k-x-mu)/self.L_star
-        numerator = 0.4*self.phi_star/(L**(-self.alpha-1)+L**(-self.beta-1))
-        return numerator / denominator
-
-class Prob_det(object):
-    def __init__(self,zmin,zmax):
-        self.zmean = (zmin+zmax)/2
-        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
-        self.alpha = -(self.gamma1+1)
-        self.beta = -(self.gamma2+1)
-
-    def __call__(self,m0,b,x,k,mu,Lmin,denominator):
-        L1 = abs_mag_to_L(m0-k.mean()-x-mu.mean())/self.L_star
-        const1 = (1/denominator)*self.phi_star/jnp.log(10)*10**(b*(m0-x-k.mean()-mu.mean())/2.5)
-        const2 = (1/denominator)*self.phi_star/jnp.log(10)
-        term1 = const1*integral_Lmin_Lmax(Lmin, L1, self.beta+b, self.alpha+b)
-        term2 = const2*integral_Lmin_Lmax(L1,jnp.inf,self.beta, self.alpha)
-        ans = term1 + term2
-        #print(const1)
-        #print(const2)
-        return ans
-
+def Prob_det_NT(m0,b,x,k,mu,Lmin,Lmax,alpha,beta,L_star,phi_star,Volume,fraction):
+    L1 = abs_mag_to_L(m0-k.mean()-x-mu.mean())/L_star
+    const1 = Volume*fraction*phi_star/jnp.log(10)*10**(b*(m0-x-k.mean()-mu.mean())/2.5)*(L_star/const.L_bol0.to(units.erg / units.s).value)**b
+    const2 = Volume*fraction*phi_star/jnp.log(10)
+    term1 = const1*integral_Lmin_Lmax(Lmin, L1, beta+b, alpha+b)
+    term2 = const2*integral_Lmin_Lmax(L1,Lmax,beta, alpha)
+    ans = term1 + term2
+    return ans
 
 class ln_posterior(object):
-    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4,Lmin=0.01):
-        self.Lmin = Lmin
+    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4):
         self.eff = eff
-        self.gamma1, self.gamma2, self.L_star, phi_star = get_lfpars_shen20((zmin+zmax)/2)
-        self.denominator = denominator(zmin,zmax)
-        self.Prob_m = Prob_m(zmin,zmax)
-        self.Prob_det = Prob_det(zmin,zmax)
+        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.alpha = -(self.gamma1+1)
+        self.beta = -(self.gamma2+1)
         self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
-
-    def __call__(self,m0,b,x,mhat,k,mu,fraction):
+        
+    def __call__(self,m0,c,x,mhat,k,mu,fraction):
+        b = c/m0
         nsamples = len(mhat)
-        #Lmin = 1e-4
-        Lmin = abs_mag_to_L(mhat.max()-k.mean()-x-mu.mean())/self.L_star
-        denominator_term = self.denominator(Lmin)
-        denominator_term_Ntot = self.denominator(1e-3)
-        Prob_detection = self.Prob_det(m0,b,x,k,mu,Lmin,denominator_term)
-        Prob_mag = self.Prob_m(mhat,x,k,mu,denominator_term)
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        Lmin = abs_mag_to_L(mhat_sorted.max()-k.mean()-x-mu.mean())/self.L_star
+        Lmax = abs_mag_to_L(mhat_sorted.min()-k.mean()-x-mu.mean())/self.L_star
+        #Lmax = jnp.inf
+        Prob_detection_N_Total = Prob_det_NT(m0,b,x,k,mu,Lmin,Lmax,self.alpha,self.beta,self.L_star,self.phi_star,self.Volume,fraction)
+        numerator = num(mhat,x,k,mu,self.alpha,self.beta,self.L_star,self.phi_star)
         efficiency = self.eff(mhat,b,m0)
-        N_Total = self.Volume*denominator_term_Ntot*fraction
-        #print(Prob_detection)
-        #print(self.Volume)
-        #print(denominator_term)
-        #print(fraction)
-        #print(N_Total)
-        term1 = -Prob_detection * N_Total
-        term2 = jnp.sum(jnp.log(Prob_mag))
+        term1 = -Prob_detection_N_Total
+        term2 = jnp.sum(jnp.log(numerator))
         term3 = jnp.sum(jnp.log(efficiency))
-        #term4 = nsamples*jnp.log(N_Total)
+        term4 = nsamples*jnp.log(0.014*self.Volume)
 
-        return term1 + term2 + term3
+        return term1 + term2 + term3 + term4
+
+class ln_posterior1(object):
+    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4):
+        self.eff = eff
+        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.alpha = -(self.gamma1+1)
+        self.beta = -(self.gamma2+1)
+        self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
+        
+    def __call__(self,m0,c,x,mhat,k,mu,fraction):
+        b = c/m0
+        nsamples = len(mhat)
+        #Lmin = abs_mag_to_L((mhat-k-x-mu).max())/self.L_star
+        #Lmax = abs_mag_to_L((mhat-k-x-mu).min())/self.L_star
+        #Lmax = jnp.inf
+        #Prob_detection_N_Total = Prob_det_NT(m0,b,x,k,mu,Lmin,Lmax,self.alpha,self.beta,self.L_star,self.phi_star,self.Volume,fraction)
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        Mhat = mhat_sorted - k_sorted - x - mu_sorted
+        Lhat = abs_mag_to_L(Mhat)/self.L_star
+        efficiency = self.eff(mhat_sorted,b,m0)
+        integrand =  0.4*self.phi_star/(Lhat**(-self.alpha-1)+Lhat**(-self.beta-1))*efficiency
+        integral = fraction*self.Volume*jnp.trapezoid(integrand,jnp.sort(mhat))
+        numerator = num(mhat,x,k,mu,self.alpha,self.beta,self.L_star,self.phi_star)
+        term1 = -integral
+        term2 = jnp.sum(jnp.log(numerator))
+        term3 = jnp.sum(jnp.log(efficiency))
+        term4 = nsamples*jnp.log(0.014*self.Volume)
+
+        return term1 + term2 + term3 + term4
         

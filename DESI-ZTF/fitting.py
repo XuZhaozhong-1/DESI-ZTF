@@ -13,7 +13,7 @@ import numpy
 import jax.lax as lax
 import jax.numpy as jnp
 from astropy.constants import L_sun
-
+from jax import jit
 
 def abs_mag_to_L(M):
     """
@@ -163,9 +163,13 @@ def L_to_M(L):
 
 def get_phis(Ls, z, paper):
     gamma1, gamma2, L_star, phi_star = get_lfpars(paper, z)
+    new_gamma1 = -(-0.7353*(gamma1+1)) - 1
+    new_gamma2 = -(-0.8145*(gamma2+1)) - 1
+    new_L_star = 0.2139*L_star
+    new_phi_star = 0.2601*phi_star
     #gamma1 -= 0.4
     #gamma2 += 0.1
-    phis = phi_star / ((Ls / L_star) ** gamma1 + (Ls / L_star) ** gamma2)
+    phis = new_phi_star / ((Ls / new_L_star) ** new_gamma1 + (Ls / new_L_star) ** new_gamma2)
     return phis
 
 # class Phi_0(object):
@@ -186,248 +190,18 @@ class phi(object):
         L=(((alpha+beta)/2+1)*x)**(1/(1+(alpha+beta)/2))
         norm = -(Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)) * (1/(L**((beta-alpha)/2) + L**((-beta-alpha)/2))).mean()
         return 1/(_L**(-alpha) + _L**(-beta))/norm
-
-# designed for alpha > beta
-#def phi_new(L, alpha, beta, Lmin):
-#    norm = Lmin**(alpha+1) * hyp2f1((1+alpha)/(alpha-beta),-Lmin**(alpha-beta))
-#    return 1/(L**(-alpha) + L**(-beta))/norm
 	
 def phi_new(L,alpha,beta,Lmin):
     norm = integral_Lmin_Lmax(Lmin, jnp.inf, beta, alpha)
     phi = 1/(L**(-alpha)+L**(-beta))/norm
-    #print(norm)
     return phi
-#class N_obs(object):
-#    def __init__(self, zmin, zmax, eff, Nsamples=1000):
-#        self.desi_fraction = 0.16
-#        self._x = numpy.random.uniform(0,1,Nsamples)
-#        self._y = numpy.random.normal(0,1,Nsamples)
-#        _, _, self.L_star, phi_star = get_lfpars_shen20((zmax+zmin)/2)
-#        self.phi_star_over_ln10 = phi_star/numpy.log(10)
-#        self.eff = eff
-#        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin))
-
- #   def __call__(self, x, alpha, beta, Lmin, k, mu, sigma):
- #       x = self._x*Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)
- #       L=(((alpha+beta)/2+1)*x)**(1/(1+(alpha+beta)/2))
- #       M = L_to_M(L*self.L_star)
- #       m = self._y * sigma + M + x+ k + mu
- #       return -self.Volume*(Lmin**((alpha+beta)/2+1)/((alpha+beta)/2+1)) * self.phi_star_over_ln10* (self.eff(m)/(L**((beta-alpha)/2) + L**((-beta+alpha)/2))).mean()
-	    
-# uses mean redshift
-#class N_obs(object):
-#    def __init__(self, zmin, zmax):
-#        self.zmean = (zmin+zmax)/2
-#        self.desi_fraction = 0.16
-#        _, _, self.L_star, phi_star = get_lfpars_shen20(self.zmean)
-#        self.mu = Planck18.distmod(self.zmean).value
-#        self.phi_star_over_ln10 = phi_star/numpy.log(10)
-#        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
-
-        # Using Laplace's approximation
-        # alpha, beta, k, mu, sigma are all an average value for the redshit bin.
-#    def __call__(self, m0, b, x, alpha, beta, Lmin, Lmax,k, sigma):
-#        const = 10**(-b/2.5)*(x+k.mean()+self.mu-m0)
-#        L0 = abs_mag_to_L(m0-k.mean()-self.mu-x)/self.L_star
-#        term1 = const/(alpha+b+1)*(L0**(alpha+b+1)*scipy.special.hyp2f1(1,(alpha+b+1)/(alpha-beta),1+(alpha+b+1)/(alpha-beta),-L0**(alpha-beta))-Lmin**(alpha+b+1)*scipy.special.hyp2f1(1,(alpha+b+1)/(alpha-beta),1+(alpha+b+1)/(alpha-beta),-Lmin**(alpha-beta)))
-#        term2 = 1/(alpha+1)*(Lmax**(alpha+1)*scipy.special.hyp2f1(1,(alpha+1)/(alpha-beta),1+(1+alpha)/(alpha-beta),-Lmax**(alpha-beta))-L0**(alpha+1)*scipy.special.hyp2f1(1,(alpha+1)/(alpha-beta),1+(1+alpha)/(alpha-beta),-L0**(alpha-beta)))
-#        ans = term1 + term2
-#        ans = ans * self.Volume * self.phi_star_over_ln10
-#        return ans
-
-class discovery_fraction(object):
-    def __init__(self, eff, Nsamples=50, key=None):
-        if key is None:
-            key = jax.random.PRNGKey(0)  # Initialize a key if none is provided
-        self.key = key
-        self._y = jax.random.normal(self.key, (Nsamples,))  # Use jrandom for normal distribution
-        self.eff = eff
-
-    def __call__(self, x, M, k, mu,sigma):
-        m = self._y[:,None,None] * sigma + M + x+ k + mu
-        return self.eff(m).mean(axis=0)
-    
-
-
-
-
-def discovery_fraction_exp(m0,b,mbar,sigma):
-    # m0=0; mbar=1; b=2; sigma=1
-    coeff = b*jnp.log(10)/2.5
-    # integrate.quad(lambda m: (1 if m<m0 else 10**(-b*(m-m0)/2.5)) /numpy.sqrt(2*numpy.pi)/sigma*numpy.exp(-(m-mbar)**2/2/sigma**2), -100,100)
-    ans = (
-        jax.scipy.stats.norm.cdf(m0,mbar,sigma) 
-        + 1/2*jnp.exp(coeff/2*(2*m0+coeff*sigma**2-2*mbar)) 
-        * jax.scipy.special.erfc((m0+coeff*sigma**2-mbar)/jnp.sqrt(2)/sigma))
-    #print(sigma/2*jnp.exp(coeff/2*(2*m0+coeff*sigma**2-2*mbar)))
-    return ans
-
-def df_analytic(m0,b,mbar,sigma):
-    coeff1 = 1/(2*sigma**2)
-    coeff2 = jnp.log(10)*b/2.5
-    term1 = jax.scipy.stats.norm.cdf(m0,mbar,sigma)
-    term2 = 10**(b/2.5*(m0-mbar))/(jnp.sqrt(2)*sigma)*jnp.exp(coeff2**2/4/coeff1)/2/jnp.sqrt(coeff1)
-    term3 = 10**(b/2.5*(m0-mbar))/(jnp.sqrt(2)*sigma)*jnp.exp(coeff2**2/4/coeff1)*jax.scipy.special.erf((2*coeff1*(m0-mbar)+coeff2)/2/jnp.sqrt(coeff1))/2/jnp.sqrt(coeff1)
-    #print(term2)
-    return term1 + term2 - term3
-    
-def df_analytic_m_max(m_max,m0,b,mbar,sigma):
-    coeff1 = 1/(2*sigma**2)
-    coeff2 = jnp.log(10)*b/2.5
-    term1 = jax.scipy.stats.norm.cdf(m0,mbar,sigma)
-    term2 = 10**(b/2.5*(m0-mbar))/(jnp.sqrt(2)*sigma)*jnp.exp(coeff2**2/4/coeff1)*jax.scipy.special.erf((2*coeff1*(m_max-mbar)+coeff2)/2/jnp.sqrt(coeff1))/2/jnp.sqrt(coeff1)
-    term3 = 10**(b/2.5*(m0-mbar))/(jnp.sqrt(2)*sigma)*jnp.exp(coeff2**2/4/coeff1)*jax.scipy.special.erf((2*coeff1*(m0-mbar)+coeff2)/2/jnp.sqrt(coeff1))/2/jnp.sqrt(coeff1)
-    return term1 + term2 - term3
-
-class ln_posterior(object):
-    def __init__(self, eff,zmin=2.3, zmax=2.4, Nsamples=200,key = jax.random.PRNGKey(0)):
-        self._y = jax.random.normal(key, (Nsamples,))
-        self.eff = eff
-        #self.discovery_fraction = discovery_fraction(eff)
-        #self.phi = phi()
-        self.N_obs = N_obs(zmin,zmax)
-        self.gamma1, self.gamma2, self.L_star, phi_star = get_lfpars_shen20((zmin+zmax)/2)
-        self.beta = -(self.gamma1+1) + 0.5
-        self.alpha = -(self.gamma2+1)
-
-    def __call__(self, m0, c, x, mhat, k, mu,sigma,fraction):
-        b = jnp.exp(c)/m0
-        nquasar=len(mhat)
-        M = self._y[:,None] * sigma + mhat - x - k - mu
-        #df = df_analytic(m0,b,M+x+k+mu,sigma)
-        df = df_analytic_m_max(mhat.max(),m0,b,M+x+k+mu,sigma)
-        #Lmin = 0.2
-        Lmin = abs_mag_to_L(mhat.max()-k.mean()-mu.mean()-x)/self.L_star
-        #Lmin = MgtoLg(mhat.max()-k.mean()-mu.mean()-x)/self.L_star
-        #Lmax = abs_mag_to_L(mhat.min()-k.mean()-mu.mean()-x)/self.L_star
-        #df = self.discovery_fraction(x,M,k,mu,sigma)
-        N_obs = self.N_obs(m0, b, x, self.beta, self.alpha, Lmin,k,fraction)
-        L = abs_mag_to_L(M)/self.L_star
-        #L = MgtoLg(M)/self.L_star
-        phi = phi_new(L,self.beta,self.alpha,Lmin)
-        #integrand = self.eff(mhat)/df*phi
-        #temp = integrand.prod(axis=1)
-        #maxtemp = temp.max()
-        integral = (self.eff(mhat,b,m0)/df*phi*0.4*jnp.log(10)*L).mean(axis=0)
-        #print(phi)
-        #print(df)
-        print(f"first term {(jnp.log(integral)).sum()}")
-        print(f"Poisson term {nquasar*jnp.log(N_obs) - N_obs}")
-        #print(f"N_obs {N_obs}")
-        #return (jnp.log(integral)).sum()
-        #return nquasar*jnp.log(N_obs) - N_obs
-        return (jnp.log(integral)).sum() + nquasar*jnp.log(N_obs) - N_obs + (N_obs-nquasar)*jnp.log(N_obs-nquasar) - N_obs*jnp.log(N_obs)
-        #return jnp.log(maxtemp) + jnp.log((temp/maxtemp).sum()) + nquasar*jnp.log(N_obs) - N_obs
         
-class check_ln_posterior(object):
-    def __init__(self, eff,zmin, zmax, Nsamples,key = jax.random.PRNGKey(0)):
-        self._y = jax.random.normal(key, (Nsamples,))
-        self.eff = eff
-        #self.discovery_fraction = discovery_fraction(eff)
-        #self.phi = phi()
-        self.N_obs = N_obs(zmin,zmax)
-        self.gamma1, self.gamma2, self.L_star, phi_star = get_lfpars_shen20((zmin+zmax)/2)
-        self.alpha = -(self.gamma1+1)
-        self.beta = -(self.gamma2+1)
-
-    def __call__(self, m0, b, x, mhat, k, mu,sigma,fraction):
-        nquasar=len(mhat)
-        M = self._y[:,None] * sigma + mhat - x - k - mu
-        df = df_analytic(m0,b,M+x+k+mu,sigma)
-        #Lmin = 0.2
-        Lmin = abs_mag_to_L(mhat.max()-k.mean()-mu.mean()-x)/self.L_star
-        #Lmax = abs_mag_to_L(mhat.min()-k.mean()-mu.mean()-x)/self.L_star
-        #df = self.discovery_fraction(x,M,k,mu,sigma)
-        N_obs = self.N_obs(m0, b, x, self.alpha, self.beta, Lmin,k,fraction)
-        L = abs_mag_to_L(M)/self.L_star
-        phi = phi_new(L,self.alpha,self.beta,Lmin)
-        #integrand = self.eff(mhat)/df*phi
-        #temp = integrand.prod(axis=1)
-        #maxtemp = temp.max()
-        #integral = (self.eff(mhat,b,m0)/df*phi*0.4*jnp.log(10)*L).mean(axis=0)
-        integral = (self.eff(mhat,b,m0)/df*phi*0.4*jnp.log(10)*L).mean(axis=0)
-        print(f"first term {(jnp.log(integral)).sum()}")
-        print(f"Poisson term {nquasar*jnp.log(N_obs) - N_obs}")
-        print(f"N_obs {N_obs}")
-        #return (jnp.log(integral)).sum()
-        #return nquasar*jnp.log(N_obs) - N_obs
-        return (jnp.log(integral)).sum() + nquasar*jnp.log(N_obs) - N_obs
-        #return jnp.log(maxtemp) + jnp.log((temp/maxtemp).sum()) + nquasar*jnp.log(N_obs) - N_obs
-    
-# uses mean redshift
-#class N_obs(object):
-#    def __init__(self, zmin, zmax):
-#        self.zmean = (zmin+zmax)/2
-#        self.desi_fraction = 0.16
-#        _, _, self.L_star, phi_star = get_lfpars_shen20(self.zmean)
-#        self.mu = Planck18.distmod(self.zmean).value
-#        self.phi_star_over_ln10 = phi_star/numpy.log(10)
-#        self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
-
-        # Using Laplace's approximation
-        # alpha, beta, k, mu, sigma are all an average value for the redshit bin.
- #   def __call__(self, m0, b, x, alpha, beta, Lmin, k, sigma):
- #       fmin = 10**((-self.mu-x-k)/2.5)*Lmin
- #       f0 = 10**(-m0/2.5)
- #       term1 = f0**b * (
- #           f0**(alpha-b+1) * scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-f0**(alpha-beta))
- #           - fmin**(alpha-b+1) * scipy.special.hyp2f1(1,(1+alpha-b)/(alpha-beta),1+(1+alpha-b)/(alpha-beta),-fmin**(alpha-beta))
- #           )
- #       term2 = fmin**(alpha+1) * scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-fmin**(alpha-beta))
- #       ans = term1 + term2
- #       print(term1)
- #       print(term2)
- #       ans = ans * self.Volume * self.phi_star_over_ln10 / self.L_star
- #       return ans
-
-# 2F1(1, x, 1+x, z)
-#def hyp2f1_special(x, z, buf=3):
-#    # choose buf >> abs(x)
-#    ns = numpy.arange(1,max(0, numpy.ceil(x))+buf,dtype='int')
-#    terms = x/(x+ns)*z**ns
-#    ans = 1 + terms.sum()
-#    return ans
-
-
-# 2F1(1,x,1+x,z)
-#def hyp2f1(x,z,buf=10):
-    # z != -1
-#    def non_neg1_case(_):
-#        ns = jnp.arange(1,buf,dtype='int')
-#        terms = x/(x+ns)*z**ns
-#        ans = 1 + terms.sum()
-#        return ans
-    # z = -1
-#    def neg1_case(_):
-#        return 0.5*x*(jax.scipy.special.digamma(0.5*(x+1))-jax.scipy.special.digamma(0.5*x))
-    
-#    return lax.cond(z == -1, neg1_case, non_neg1_case, None)
-
 def hyp2f1(x, z, buf=10):
     # choose buf >> abs(x)
     ns = jnp.arange(1,buf,dtype='int')
     terms = x/(x+ns)*z**ns
     ans = 1 + terms.sum()
     return ans
-
-
-# integral 1/(L**-alpha+L**-beta) dL
-# convention is alpha < beta
-#def integral(L, alpha, beta, approx=True):
-#    if L==1:
-#        ans = (
-#            0.5 * (1+alpha)/(alpha-beta) * 
-#            (jax.scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta) + 0.5) - jax.scipy.special.digamma(0.5 * (1+alpha)/(alpha-beta)))
-#            /(1+alpha)
-#            )
-#    elif numpy.abs(L**(alpha-beta))<1:
-#        if approx:
-#            ans = L**(alpha+1)*hyp2f1_special((1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
-#        else:
-#            ans = L**(alpha+1)*jax.scipy.special.hyp2f1(1,(1+alpha)/(alpha-beta),1+(1+alpha)/(alpha-beta),-L**(alpha-beta))/(1+alpha)
-#    else:
-#        raise Exception("|L**(alpha-beta)|<1 not implemented on purpose")
-#    return ans
     
 def integral(L, alpha, beta):
     def case_L_1(L, alpha, beta):
@@ -461,29 +235,6 @@ def integral(L, alpha, beta):
     )
 
     return ans
-
-# integral_Lmin^Lmax 1/(L**-alpha+L**-beta) dL
-# convention is alpha < beta
-#def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta, approx=True, check=False):
-#    ans = 0.
-#    if Lmin < 1:
-#        ans = ans - integral(Lmin, beta, alpha, approx=approx)
-#    elif Lmin >= 1:
-#        ans = ans - integral(Lmin, alpha, beta, approx=approx)
-
-#    if Lmax != numpy.inf:
-#        if Lmax <= 1:
-#            ans = ans + integral(Lmax, beta, alpha, approx=approx)
-#        elif Lmax > 1:
-#            ans = ans + integral(Lmax, alpha, beta, approx=approx)    
-
-#    if Lmin < 1 and (Lmax >1 or Lmax == numpy.inf):
-#        ans = ans -integral(1, alpha, beta)+integral(1, beta, alpha)
-
-#    if check:
-#        print(ans, scipy.integrate.quad(lambda L: 1/(L**-alpha+L**-beta), Lmin, Lmax))    
-#    #constructed from integral from Lmin to 1, 1 to infinity
-#    return ans
 
 def integral_Lmin_Lmax(Lmin, Lmax, alpha, beta):
     def cond_below_one(Lmin, alpha, beta):
@@ -553,28 +304,89 @@ def test():
 
 #test()
 
-# uses mean redshift
-class N_obs(object):
-    def __init__(self, zmin, zmax):
-        self.zmean = (zmin+zmax)/2
-        #self.desi_fraction = 0.02
-        _, _, self.L_star, phi_star = get_lfpars_shen20(self.zmean)
-        self.mu = Planck18.distmod(self.zmean).value
-        self.phi_star_over_ln10 = phi_star/jnp.log(10)
-        #self.Volume = self.desi_fraction*(Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
-        self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
+#class denominator(object):
+#    def __init__(self,zmin,zmax):
+#        self.zmean = (zmin+zmax)/2
+#        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20(self.zmean)
+#        self.alpha = -(self.gamma1+1)
+#        self.beta = -(self.gamma2+1)
+#        self.phi_star_over_ln10 = self.phi_star/jnp.log(10)
+#
+#    def __call__(self,Lmin):
+#        ans = self.phi_star_over_ln10 * integral_Lmin_Lmax(Lmin,jnp.inf,self.beta,self.alpha)
+#        return ans
 
-        # Using Laplace's approximation
-        # alpha, beta, k, mu, sigma are all an average value for the redshit bin
-    def __call__(self, m0, b, x, alpha, beta, Lmin,k,fraction):
-        Volume = self.Volume*fraction
-        L0 = abs_mag_to_L(m0 - k.mean() - self.mu - x)/self.L_star
-        #L0 = MgtoLg(m0 - k.mean() - self.mu - x)/self.L_star
-        L_0 = const.L_bol0.to(units.erg / units.s).value
-        const1 = Volume*self.phi_star_over_ln10*10**(-b*(x+k.mean()+self.mu-m0)/2.5)*(L_0/self.L_star)**(-b)
-        const2 = Volume*self.phi_star_over_ln10
-        term1 = const1*integral_Lmin_Lmax(Lmin, L0, beta+b, alpha+b)
-        #term2 = const2*integral_Lmin_Lmax(L0,jnp.inf,beta, alpha)
-        term2 = const2*integral_Lmin_Lmax(L0,jnp.inf,beta, alpha)
-        ans = term1 + term2
-        return ans
+def num(mhat,x,k,mu,alpha,beta,L_star,phi_star):
+    L = abs_mag_to_L(mhat-k-x-mu)/L_star
+    numerator = 0.4*phi_star/(L**(-alpha-1)+L**(-beta-1))
+    return numerator
+
+def Prob_det_NT(m0,b,x,k,mu,Lmin,Lmax,alpha,beta,L_star,phi_star,Volume,fraction):
+    L1 = abs_mag_to_L(m0-k.mean()-x-mu.mean())/L_star
+    const1 = Volume*fraction*phi_star/jnp.log(10)*10**(b*(m0-x-k.mean()-mu.mean())/2.5)*(L_star/const.L_bol0.to(units.erg / units.s).value)**b
+    const2 = Volume*fraction*phi_star/jnp.log(10)
+    term1 = const1*integral_Lmin_Lmax(Lmin, L1, beta+b, alpha+b)
+    term2 = const2*integral_Lmin_Lmax(L1,Lmax,beta, alpha)
+    ans = term1 + term2
+    return ans
+
+class ln_posterior(object):
+    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4):
+        self.eff = eff
+        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.alpha = -(self.gamma1+1)
+        self.beta = -(self.gamma2+1)
+        self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
+        
+    def __call__(self,m0,c,x,mhat,k,mu,fraction):
+        b = c/m0
+        nsamples = len(mhat)
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        Lmin = abs_mag_to_L(mhat_sorted.max()-k.mean()-x-mu.mean())/self.L_star
+        Lmax = abs_mag_to_L(mhat_sorted.min()-k.mean()-x-mu.mean())/self.L_star
+        #Lmax = jnp.inf
+        Prob_detection_N_Total = Prob_det_NT(m0,b,x,k,mu,Lmin,Lmax,self.alpha,self.beta,self.L_star,self.phi_star,self.Volume,fraction)
+        numerator = num(mhat,x,k,mu,self.alpha,self.beta,self.L_star,self.phi_star)
+        efficiency = self.eff(mhat,b,m0)
+        term1 = -Prob_detection_N_Total
+        term2 = jnp.sum(jnp.log(numerator))
+        term3 = jnp.sum(jnp.log(efficiency))
+        term4 = nsamples*jnp.log(0.014*self.Volume)
+
+        return term1 + term2 + term3 + term4
+
+class ln_posterior1(object):
+    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4):
+        self.eff = eff
+        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.alpha = -(self.gamma1+1)
+        self.beta = -(self.gamma2+1)
+        self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
+        
+    def __call__(self,m0,c,x,mhat,k,mu,fraction):
+        b = c/m0
+        nsamples = len(mhat)
+        #Lmin = abs_mag_to_L((mhat-k-x-mu).max())/self.L_star
+        #Lmax = abs_mag_to_L((mhat-k-x-mu).min())/self.L_star
+        #Lmax = jnp.inf
+        #Prob_detection_N_Total = Prob_det_NT(m0,b,x,k,mu,Lmin,Lmax,self.alpha,self.beta,self.L_star,self.phi_star,self.Volume,fraction)
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        Mhat = mhat_sorted - k_sorted - x - mu_sorted
+        Lhat = abs_mag_to_L(Mhat)/self.L_star
+        efficiency = self.eff(mhat_sorted,b,m0)
+        integrand =  0.4*self.phi_star/(Lhat**(-self.alpha-1)+Lhat**(-self.beta-1))*efficiency
+        integral = fraction*self.Volume*jnp.trapezoid(integrand,jnp.sort(mhat))
+        numerator = num(mhat,x,k,mu,self.alpha,self.beta,self.L_star,self.phi_star)
+        term1 = -integral
+        term2 = jnp.sum(jnp.log(numerator))
+        term3 = jnp.sum(jnp.log(efficiency))
+        term4 = nsamples*jnp.log(0.014*self.Volume)
+
+        return term1 + term2 + term3 + term4
+        
