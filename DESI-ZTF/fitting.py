@@ -162,11 +162,11 @@ def L_to_M(L):
     return -2.5*numpy.log10(L/L_0)
 
 def get_phis(Ls, z, paper):
-    gamma1, gamma2, L_star, phi_star = get_lfpars(paper, z)
-    new_gamma1 = -(-0.7353*(gamma1+1)) - 1
-    new_gamma2 = -(-0.8145*(gamma2+1)) - 1
-    new_L_star = 0.2139*L_star
-    new_phi_star = 0.2601*phi_star
+    gamma1, gamma2, L_star, phi_star = get_lfpars(paper, 2.55)
+    new_gamma1 = -(-0.7459*(gamma1+1)) - 1
+    new_gamma2 = -(-0.8215*(gamma2+1)+0.2461*(z-2.5171)) - 1
+    new_L_star = 0.2200*L_star
+    new_phi_star = 0.2536*phi_star*10**(0.0045*(z-2.5171))
     #gamma1 -= 0.4
     #gamma2 += 0.1
     phis = new_phi_star / ((Ls / new_L_star) ** new_gamma1 + (Ls / new_L_star) ** new_gamma2)

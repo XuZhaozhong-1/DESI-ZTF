@@ -355,17 +355,17 @@ class ln_posterior(object):
         return term1 + term2 + term3 + term4
 
 class ln_posterior1(object):
-    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.8):
+    def __init__(self,eff,fraction=0.014,zmin=2.75,zmax=2.80):
         self.eff = eff
         self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
         self.alpha = -(self.gamma1+1)
         self.beta = -(self.gamma2+1)
         self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
         
-    def __call__(self,m0,b,zeta,mhat,sigma,k,mu,z,phi_star,L_star,alpha,beta,fraction):
+    def __call__(self,m0,b,zeta,mhat,sigma,k,mu,z,phi_star,L_star,alpha,beta,z_ref):
         #b = c/m0
         #phi_star = d/m0
-        nsamples = len(mhat)
+        #nsamples = len(mhat)
         #Lmin = abs_mag_to_L((mhat-k-x-mu).max())/self.L_star
         #Lmax = abs_mag_to_L((mhat-k-x-mu).min())/self.L_star
         #Lmax = jnp.inf
@@ -376,16 +376,218 @@ class ln_posterior1(object):
         mu_sorted = mu[sort_idx]
         sigma_sorted = sigma[sort_idx]
         z_sorted = z[sort_idx]
-        Mhat = mhat_sorted - k_sorted - mu_sorted + zeta*(z_sorted - jnp.mean(z_sorted))
+        Mhat = mhat_sorted - k_sorted - mu_sorted + zeta*(z_sorted - z_ref)
         Lhat = abs_mag_to_L(Mhat)/L_star
         exp_term = (jnp.log(10)/2.5*alpha)**2*sigma_sorted**2/2
         efficiency = self.eff(mhat_sorted,b,m0)
         I = 0.4*phi_star/(Lhat**(-alpha-1)+Lhat**(-beta-1))*efficiency*jnp.exp(-exp_term)
-        integrand =  fraction*self.Volume*I
+        integrand =  self.Volume*I
         integral = jnp.trapezoid(integrand,jnp.sort(mhat))
         term1 = -integral
         term2 = jnp.sum(jnp.log(I))
         #print(term1)
 
         return term1 + term2
+
+class ln_posterior_shen(object):
+    def __init__(self,eff,fraction=0.014,zmin=2.75,zmax=2.80):
+        self.eff = eff
+        self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
+        self.alpha = -(self.gamma1+1)
+        self.beta = -(self.gamma2+1)
+        self.Volume = (Planck18.comoving_volume(zmax)-Planck18.comoving_volume(zmin)).value
         
+    def __call__(self,m0,b,zeta,mhat,sigma,k,mu,z,phi_star,L_star,z_ref):
+        #b = c/m0
+        #phi_star = d/m0
+        #nsamples = len(mhat)
+        #Lmin = abs_mag_to_L((mhat-k-x-mu).max())/self.L_star
+        #Lmax = abs_mag_to_L((mhat-k-x-mu).min())/self.L_star
+        #Lmax = jnp.inf
+        #Prob_detection_N_Total = Prob_det_NT(m0,b,x,k,mu,Lmin,Lmax,self.alpha,self.beta,self.L_star,self.phi_star,self.Volume,fraction)
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        sigma_sorted = sigma[sort_idx]
+        z_sorted = z[sort_idx]
+        Mhat = mhat_sorted - k_sorted - mu_sorted + zeta*(z_sorted - z_ref)
+        Lhat = abs_mag_to_L(Mhat)/L_star
+        exp_term = (jnp.log(10)/2.5*self.alpha)**2*sigma_sorted**2/2
+        efficiency = self.eff(mhat_sorted,b,m0)
+        I = 0.4*phi_star/(Lhat**(-self.alpha-1)+Lhat**(-self.beta-1))*efficiency*jnp.exp(-exp_term)
+        integrand =  self.Volume*I
+        integral = jnp.trapezoid(integrand,jnp.sort(mhat))
+        term1 = -integral
+        term2 = jnp.sum(jnp.log(I))
+        #print(term1)
+
+        return term1 + term2
+
+class ln_posterior2(object):
+    def __init__(self, eff, fraction=0.014, zmin=2.3, zmax=2.6):
+        self.eff = eff
+        self.z_ref = 0.5 * (zmin + zmax)
+        self.Volume = (Planck18.comoving_volume(zmax) - Planck18.comoving_volume(zmin)).value
+
+    def __call__(self, m0, b, 
+                 aL, bL, cL,         # L_star(z) params
+                 aP, bP, cP,         # phi_star(z) params (optional, could be set = L_star params)
+                 a_alpha, b_alpha,   # alpha(z)
+                 a_beta, b_beta,     # beta(z)
+                 mhat, sigma, k, mu, z):
+        
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        sigma_sorted = sigma[sort_idx]
+        z_sorted = z[sort_idx]
+
+        # Redshift-dependent parameters
+        log10_L_star = aL * (z_sorted-self.z_ref)**2 + bL * (z_sorted-self.z_ref) + cL
+        L_star = 10**log10_L_star
+        
+        log10_phi_star = aP * (z_sorted-self.z_ref)**2 + bP * (z_sorted-self.z_ref) + cP
+        phi_star = 10**log10_phi_star
+        
+        alpha = a_alpha * (z_sorted-self.z_ref) + b_alpha
+        beta = a_beta * (z_sorted-self.z_ref) + b_beta
+
+        # Absolute magnitude (with evolution term)
+        Mhat = mhat_sorted - k_sorted - mu_sorted 
+        Lhat = abs_mag_to_L(Mhat) / L_star
+
+        # Gaussian error smoothing term
+        exp_term = (jnp.log(10)/2.5 * alpha)**2 * sigma_sorted**2 / 2
+
+        efficiency = self.eff(mhat_sorted, b, m0)
+
+        # QLF value (double power law in luminosity)
+        I = 0.4 * phi_star / (Lhat**(-alpha - 1) + Lhat**(-beta - 1))
+        I = I * efficiency * jnp.exp(-exp_term)
+
+        integrand = self.Volume * I
+        integral = jnp.trapezoid(integrand, mhat_sorted)
+
+        term1 = -integral
+        term2 = jnp.sum(jnp.log(I ))  # add small value to avoid log(0)
+
+        return term1 + term2
+
+class ln_posterior3(object):
+    def __init__(self, eff, zmin=2.3, zmax=2.6):
+        self.eff = eff
+        self.z_ref = 0.5 * (zmin + zmax)
+        self.Volume = (Planck18.comoving_volume(zmax) - Planck18.comoving_volume(zmin)).value
+
+    def __call__(self, 
+                 a_m0, b_m0, c_m0,       # m0(z)
+                 a_b, b_b, c_b,          # b(z)
+                 aL, bL, cL,             # log10 L_star(z)
+                 aP, bP, cP,             # log10 phi_star(z)
+                 a_alpha, b_alpha,      # alpha(z)
+                 a_beta, b_beta,        # beta(z)
+                 mhat, sigma, k, mu, z):  # observed
+
+        # Sort inputs
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        sigma_sorted = sigma[sort_idx]
+        z_sorted = z[sort_idx]
+
+        delta_z = z_sorted - self.z_ref
+
+        # Quadratic evolution for most parameters
+        log10_L_star = aL * delta_z**2 + bL * delta_z + cL
+        L_star = 10**log10_L_star
+
+        log10_phi_star = aP * delta_z**2 + bP * delta_z + cP
+        phi_star = 10**log10_phi_star
+
+        m0 = a_m0 * delta_z**2 + b_m0 * delta_z + c_m0
+        b = a_b * delta_z**2 + b_b * delta_z + c_b
+
+        # Linear evolution for α and β
+        alpha = a_alpha * delta_z + b_alpha
+        beta = a_beta * delta_z + b_beta
+
+        # Absolute magnitude and luminosity
+        Mhat = mhat_sorted - k_sorted - mu_sorted
+        Lhat = abs_mag_to_L(Mhat) / L_star
+
+        # Photometric smoothing
+        exp_term = (jnp.log(10) / 2.5 * alpha)**2 * sigma_sorted**2 / 2
+
+        # Efficiency function
+        efficiency = self.eff(mhat_sorted, b, m0)
+
+        # QLF with selection effects
+        I = 0.4 * phi_star / (Lhat**(-alpha - 1) + Lhat**(-beta - 1))
+        I = I * efficiency * jnp.exp(-exp_term)
+
+        # Integral and log-likelihood
+        integrand = self.Volume * I
+        integral = jnp.trapezoid(integrand, mhat_sorted)
+
+        return -integral + jnp.sum(jnp.log(I))
+
+class ln_posterior4(object):
+    def __init__(self, eff, zmin=2.3, zmax=2.6):
+        self.eff = eff
+        self.z_ref = 0.5 * (zmin + zmax)
+        self.Volume = (Planck18.comoving_volume(zmax) - Planck18.comoving_volume(zmin)).value
+
+    def __call__(self, 
+                 m0_fixed, b_fixed,        # constant m0 and b
+                 aL, bL,                   # log10 L_star(z)
+                 aP, bP,                   # log10 phi_star(z)
+                 a_alpha, b_alpha,        # alpha(z)
+                 a_beta, b_beta,          # beta(z)
+                 mhat, sigma, k, mu, z):  # observed data
+
+        # Sort inputs by magnitude
+        sort_idx = jnp.argsort(mhat)
+        mhat_sorted = mhat[sort_idx]
+        k_sorted = k[sort_idx]
+        mu_sorted = mu[sort_idx]
+        sigma_sorted = sigma[sort_idx]
+        z_sorted = z[sort_idx]
+
+        delta_z = z_sorted - self.z_ref
+
+        # Linear evolution
+        log10_L_star = aL * delta_z + bL
+        L_star = 10**log10_L_star
+
+        log10_phi_star = aP * delta_z + bP
+        phi_star = 10**log10_phi_star
+
+        alpha = a_alpha * delta_z + b_alpha
+        beta = a_beta * delta_z + b_beta
+
+        # Fixed m0 and b across all redshifts
+        m0 = m0_fixed
+        b = b_fixed
+
+        # Absolute magnitude and luminosity
+        Mhat = mhat_sorted - k_sorted - mu_sorted
+        Lhat = abs_mag_to_L(Mhat) / L_star
+
+        # Photometric smoothing term
+        exp_term = (jnp.log(10) / 2.5 * alpha)**2 * sigma_sorted**2 / 2
+
+        # Efficiency function
+        efficiency = self.eff(mhat_sorted, b, m0)
+
+        # QLF with selection effects
+        I = 0.4 * phi_star / (Lhat**(-alpha - 1) + Lhat**(-beta - 1))
+        I = I * efficiency * jnp.exp(-exp_term)
+
+        # Integral and log-likelihood
+        integrand = self.Volume * I
+        integral = jnp.trapezoid(integrand, mhat_sorted)
+
+        return -integral + jnp.sum(jnp.log(I))

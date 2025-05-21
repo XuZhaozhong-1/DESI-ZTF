@@ -355,7 +355,7 @@ class ln_posterior(object):
         return term1 + term2 + term3 + term4
 
 class ln_posterior1(object):
-    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.4):
+    def __init__(self,eff,fraction=0.014,zmin=2.3,zmax=2.35):
         self.eff = eff
         self.gamma1, self.gamma2, self.L_star, self.phi_star = get_lfpars_shen20((zmin+zmax)/2)
         self.alpha = -(self.gamma1+1)
