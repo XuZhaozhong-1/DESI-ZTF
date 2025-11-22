@@ -1,0 +1,27 @@
+# DESI Y3 — canonical paths + bins
+raw_glob: "data/raw/*.fits*"
+
+interm_parquet: "data/interm/y3_qso_clean.parquet"
+
+processed:
+  parquet_pattern: "data/processed/y3_bin{idx}_z{zmin}-{zmax}.parquet"
+  arrays_pattern:  "data/processed/y3_bin{idx}_arrays.npz"
+
+chains:
+  per_bin:
+    - "results/mcmc/per_bin/y3_bin1_z2.3-2.4.npz"
+    - "results/mcmc/per_bin/y3_bin2_z2.4-2.5.npz"
+    - "results/mcmc/per_bin/y3_bin3_z2.5-2.6.npz"
+    - "results/mcmc/per_bin/y3_bin4_z2.6-2.8.npz"
+  joint: "results/mcmc/joint/y3_joint_bins1-4.npz"
+
+z_bins:
+  - [2.3, 2.4]
+  - [2.4, 2.5]
+  - [2.5, 2.6]
+  - [2.6, 2.8]
+
+fig_dir_eff: "results/figures/efficiency"
+fig_dir_evo: "results/figures/evolution"
+tables_dir:  "results/tables"
+

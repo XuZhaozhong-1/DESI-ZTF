@@ -1,0 +1,52 @@
+[Mon 20 Oct 2025 07:56:32 AM PDT] Host: nid008520
+SLURM_JOB_ID=44167626  SLURM_ARRAY_JOB_ID=44167626  TASK_ID=4
+WorkDir: /global/u1/z/zhaozhon/project
+CUDA devices: 0,1,2,3
+/global/common/software/desi/perlmutter/desiconda/20240425-2.2.0/conda/bin/python
+Python 3.10.14
+Mon Oct 20 07:56:32 2025       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.163.01             Driver Version: 550.163.01     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-80GB          On  |   00000000:03:00.0 Off |                    0 |
+| N/A   31C    P0             65W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA A100-SXM4-80GB          On  |   00000000:41:00.0 Off |                    0 |
+| N/A   28C    P0             64W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA A100-SXM4-80GB          On  |   00000000:82:00.0 Off |                    0 |
+| N/A   31C    P0             62W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA A100-SXM4-80GB          On  |   00000000:C1:00.0 Off |                    0 |
+| N/A   29C    P0             64W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+JAX backend: gpu
+[bin 4] z=2.6-2.8  N=38558  from: y3_bin4_z2.6-2.8_arrays.npz
+
+                 mean       std    median      5.0%     95.0%     n_eff     r_hat
+          b      2.05      0.12      2.04      1.85      2.25  10132.17      1.00
+       beta     -3.26      0.09     -3.26     -3.41     -3.10   7704.66      1.00
+        gap      1.87      0.05      1.87      1.79      1.95  12540.47      1.00
+  log_Lstar    106.43      0.12    106.43    106.24    106.63   7789.44      1.00
+   log_Nphi      9.10      0.15      9.10      8.85      9.35   7762.74      1.00
+         m0     22.47      0.11     22.47     22.29     22.65   8144.05      1.00
+
+Number of divergences: 0
+[save] wrote /pscratch/sd/z/zhaozhon/desi-qlf/mcmc/y3_bin4_z2.6-2.8.npz (resolved from /global/homes/z/zhaozhon/project/results/mcmc/per_bin/y3_bin4_z2.6-2.8.npz)
+[bin 4] done.

@@ -1,0 +1,33 @@
+{
+  "per_bin": [
+    {
+      "idx": 1,
+      "file": "/global/homes/z/zhaozhon/project/results/mcmc/per_bin/y3_bin1_z2.3-2.4.npz",
+      "zmin": 2.3,
+      "zmax": 2.4,
+      "z_center": 2.35
+    },
+    {
+      "idx": 2,
+      "file": "/global/homes/z/zhaozhon/project/results/mcmc/per_bin/y3_bin2_z2.4-2.5.npz",
+      "zmin": 2.4,
+      "zmax": 2.5,
+      "z_center": 2.45
+    },
+    {
+      "idx": 3,
+      "file": "/global/homes/z/zhaozhon/project/results/mcmc/per_bin/y3_bin3_z2.5-2.6.npz",
+      "zmin": 2.5,
+      "zmax": 2.6,
+      "z_center": 2.55
+    },
+    {
+      "idx": 4,
+      "file": "/global/homes/z/zhaozhon/project/results/mcmc/per_bin/y3_bin4_z2.6-2.8.npz",
+      "zmin": 2.6,
+      "zmax": 2.8,
+      "z_center": 2.7
+    }
+  ],
+  "joint": "/global/homes/z/zhaozhon/project/results/mcmc/joint/y3_joint_bins1-4.npz"
+}
