@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 # ---------- paths ----------
 ROOT    = Path.home() / "project"
-IN_FITS = ROOT / "data/interm/new_d_y3.fits"
+IN_FITS = ROOT / "data/interm/new_d_y3_clean.fits"
 OUTDIR  = ROOT / "results/figures/interm"
 OUTDIR.mkdir(parents=True, exist_ok=True)
 
@@ -87,12 +87,19 @@ plt.tight_layout()
 plt.savefig(OUTDIR / "hist_K_R_ERR.png", dpi=200)
 
 # ---------- 2) K vs Z with error bars and running median ----------
-xc, (q16, q50, q84) = running_quantiles(Z, K, nbins=25, q=(0.16, 0.5, 0.84))
 plt.figure(figsize=(6,4))
-plt.errorbar(Z, K, yerr=Kerr, fmt=".", ms=1, lw=0, alpha=0.15,
-             ecolor="0.7", elinewidth=0.5, capsize=0, label="points +/- err")
-plt.plot(xc, q50, lw=2, label="median")
-plt.fill_between(xc, q16, q84, alpha=0.15, label="16-84%")
+
+plt.errorbar(
+    Z, K,
+    yerr=Kerr,
+    fmt=".", ms=1, lw=0,
+    alpha=0.15,
+    ecolor="0.7",
+    elinewidth=0.5,
+    capsize=0,
+    label="K_R ± σ(K_R)"
+)
+
 plt.xlabel("z")
 plt.ylabel("K_R")
 plt.title("K_R vs z")

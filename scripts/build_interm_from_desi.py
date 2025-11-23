@@ -47,22 +47,46 @@ def available_pairs(pernight_dir, prefix):
     return pairs
 
 def mask_targets_with_files(d, pairs_set):
+    """
+    Return a boolean mask selecting targets for which *all actually observed*
+    (TILEID, NIGHT) pairs have corresponding per-night spectra on disk.
+
+    Parameters
+    ----------
+    d : table-like
+        Must have columns TARGETID, TILEID, NIGHT.
+    pairs_set : set of (tileid, night)
+        Set of (TILEID, NIGHT) pairs for which a per-night FITS file exists,
+        as returned by `available_pairs`.
+
+    Returns
+    -------
+    keep : ndarray of bool, shape (len(d),)
+        True for all rows belonging to targets that have complete per-night
+        coverage; False otherwise.
+    """
     from collections import defaultdict
-    tids, tileids, nights = d["TARGETID"], d["TILEID"], d["NIGHT"]
+    tids   = d["TARGETID"]
+    tiles  = d["TILEID"]
+    nights = d["NIGHT"]
+
+    # Group row indices by TARGETID
     idx_by_tid = defaultdict(list)
     for i, tid in enumerate(tids):
         idx_by_tid[int(tid)].append(i)
+
     keep = np.zeros(len(d), dtype=bool)
+
     for tid, idxs in idx_by_tid.items():
-        ti = np.unique(tileids[idxs]); ni = np.unique(nights[idxs])
-        ok = True
-        for t in ti:
-            for n in ni:
-                if (int(t), int(n)) not in pairs_set:
-                    ok = False; break
-            if not ok: break
+        # All actually observed (tile, night) pairs for this target
+        observed_pairs = set(zip(tiles[idxs], nights[idxs]))
+
+        # Require that every observed pair exists on disk
+        ok = all((int(t), int(n)) in pairs_set for t, n in observed_pairs)
+
         if ok:
             keep[idxs] = True
+
     return keep
 
 def fraction_rband(i,d,pernight_dir,nwave,ws_r,bp_r,ws):
