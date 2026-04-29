@@ -17,12 +17,13 @@ except Exception:
 
 # ---- paths ----
 ROOT  = Path.home() / "project"
-INTER = ROOT / "data/interim" / "new_d_y3.fits"
+INTER = ROOT / "data/interm" / "new_d_y3_clean.fits"
 PROC  = ROOT / "data/processed"
 PROC.mkdir(parents=True, exist_ok=True)
 
 # ---- redshift bins ----
-Z_BINS    = [(2.3, 2.4), (2.4, 2.5), (2.5, 2.6), (2.6, 2.8)]
+# Z_BINS    = [(2.3, 2.4), (2.4, 2.5), (2.5, 2.6), (2.6, 2.7),(2.7, 2.8)]
+Z_BINS    = [(2.3, 2.4), (2.4, 2.5), (2.5, 2.6),(2.6, 2.8)]
 Z_CENTERS = [0.5*(a+b) for a,b in Z_BINS]
 
 # ---- exact FITS column names (your file) ----

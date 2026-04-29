@@ -1,0 +1,57 @@
+[Wed Apr  1 05:13:54 PM PDT 2026] Host: nid003661
+SLURM_JOB_ID=50842852
+SLURM_ARRAY_JOB_ID=50842848
+SLURM_ARRAY_TASK_ID=1
+WorkDir: /global/u1/z/zhaozhon/project
+CUDA_VISIBLE_DEVICES=0,1,2,3
+/global/common/software/desi/perlmutter/desiconda/20240425-2.2.0/conda/bin/python
+Python 3.10.14
+Wed Apr  1 17:13:54 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 580.105.08             Driver Version: 580.105.08     CUDA Version: 13.0     |
++-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-40GB          On  |   00000000:03:00.0 Off |                    0 |
+| N/A   30C    P0             54W /  400W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA A100-SXM4-40GB          On  |   00000000:41:00.0 Off |                    0 |
+| N/A   30C    P0             53W /  400W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA A100-SXM4-40GB          On  |   00000000:82:00.0 Off |                    0 |
+| N/A   31C    P0             53W /  400W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA A100-SXM4-40GB          On  |   00000000:C1:00.0 Off |                    0 |
+| N/A   29C    P0             53W /  400W |       0MiB /  40960MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI              PID   Type   Process name                        GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+JAX backend: gpu
+Devices: [CudaDevice(id=0)]
+[bin 1] z=2.3-2.4 N=33,604 from: y3_bin1_z2.3-2.4_arrays.npz
+[bin 1] order-1 sigma coeff = [ 0.34607465 -1.49738104]
+[bin 1] starting MCMC: 4 chains × 10000 samples (warmup 10000)
+
+                 mean       std    median      5.0%     95.0%     n_eff     r_hat
+          b      1.58      0.16      1.55      1.36      1.82   7995.00      1.00
+       beta     -3.34      0.14     -3.32     -3.57     -3.10   7346.41      1.00
+        gap      1.76      0.07      1.76      1.64      1.88  12164.19      1.00
+  log_Lstar     24.68      0.20     24.67     24.34     25.01   7059.49      1.00
+   log_Nphi      8.57      0.28      8.60      8.12      9.03   7066.92      1.00
+         m0     22.41      0.29     22.43     21.96     22.90   7247.64      1.00
+
+Number of divergences: 0
+[save] wrote /global/u1/z/zhaozhon/project/results/mcmc/per_bin/order1_all/y3_bin1_z2.3-2.4_all_order1_w10000_s10000_c4.npz (resolved from /global/homes/z/zhaozhon/project/results/mcmc/per_bin/order1_all/y3_bin1_z2.3-2.4_all_order1_w10000_s10000_c4.npz)
+[bin 1] done.

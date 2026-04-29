@@ -32,7 +32,7 @@ PREFIX = "desi-ztf-qso-loa"
 # Selection cuts (raw)
 zmin, zmax = 2.3, 2.8
 band = "R"
-magmin, magmax = 0, 23
+magmin, magmax = 0, 100
 
 # Dispersion reference redshift
 z0 = 2.3
@@ -47,7 +47,7 @@ OUTFIG = OUTDIR / "restframe_dispersion_raw_y3.png"
 # Load raw DESI Y3 target metadata before K-correction
 # =====================================================================
 print(f"[INFO] Reading raw DESI metadata from {FIBERMAP}")
-d = read_data(FIBERMAP, zmin, zmax, band, magmin, magmax)
+d = read_data(FIBERMAP, zmin, zmax, band, magmin, magmax, return_cutflow=False)
 Nobj = len(d)
 print(f"[INFO] Selected {Nobj} objects for raw dispersion")
 

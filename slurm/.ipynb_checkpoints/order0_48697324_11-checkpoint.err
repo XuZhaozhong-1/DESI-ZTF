@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 194, in <module>
+    main()
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 150, in main
+    model = make_model(like, m_j)
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 83, in make_model
+    logN_lo, logN_hi, logL_lo, logL_hi = natlog_bounds()
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 58, in natlog_bounds
+    lnLbol0 = np.log(const.L_bol0.to(units.erg/units.s).value)
+NameError: name 'const' is not defined
+srun: error: nid004029: task 0: Exited with exit code 1
+srun: Terminating StepId=48697324.0

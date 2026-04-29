@@ -1,0 +1,56 @@
+[Tue 03 Feb 2026 07:25:34 AM PST] Host: nid008345
+JOB_ID=48457195 ARRAY_ID=48443219 TASK_ID=10
+WorkDir: /global/u1/z/zhaozhon/project
+CUDA_VISIBLE_DEVICES=0,1,2,3
+/global/common/software/desi/perlmutter/desiconda/20240425-2.2.0/conda/bin/python
+Python 3.10.14
+Tue Feb  3 07:25:34 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.163.01             Driver Version: 550.163.01     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-80GB          On  |   00000000:03:00.0 Off |                    0 |
+| N/A   30C    P0             60W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA A100-SXM4-80GB          On  |   00000000:41:00.0 Off |                    0 |
+| N/A   29C    P0             61W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA A100-SXM4-80GB          On  |   00000000:82:00.0 Off |                    0 |
+| N/A   29C    P0             62W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA A100-SXM4-80GB          On  |   00000000:C1:00.0 Off |                    0 |
+| N/A   29C    P0             67W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+[dispatch] bin=4 case=upper
+JAX backend: gpu
+NumPyro: 0.13.2
+[load] bin4_z2.6-2.7 N=20,739 from /global/homes/z/zhaozhon/project/data/processed/y3_bin4_z2.6-2.7_arrays.npz
+[masks] upper=17,324 lower=3,415 from bin4_z2.6-2.7_stripes.npz
+[sigma] loaded coeff deg=1 m_ref=22.0 from sigma_m_model_bin4_z2.6-2.7_upper.npz
+[mu] using mu(z_center=2.650) = 46.752024 (scalar)
+[mcmc] warmup=10000 samples=10000 chains=4 seed=16356
+
+                 mean       std    median      5.0%     95.0%     n_eff     r_hat
+          b      1.67      0.08      1.67      1.55      1.80   8840.87      1.00
+       beta     -3.31      0.17     -3.30     -3.59     -3.05   7712.02      1.00
+        gap      2.13      0.21      2.09      1.82      2.45   9013.54      1.00
+  log_Lstar    103.88      0.20    103.87    103.56    104.20   8697.08      1.00
+   log_Nphi     14.26      0.40     14.24     13.62     14.91   7994.89      1.00
+         m0     19.46      0.25     19.47     19.06     19.87   8400.50      1.00
+
+Number of divergences: 0

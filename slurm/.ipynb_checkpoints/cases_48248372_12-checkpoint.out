@@ -1,0 +1,54 @@
+[Fri 30 Jan 2026 09:38:51 AM PST] Host: nid008272
+JOB=48248372 ARRAY_TASK=12
+/global/common/software/desi/perlmutter/desiconda/20240425-2.2.0/conda/bin/python
+Python 3.10.14
+Fri Jan 30 09:38:51 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.163.01             Driver Version: 550.163.01     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-80GB          On  |   00000000:03:00.0 Off |                    0 |
+| N/A   30C    P0             66W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA A100-SXM4-80GB          On  |   00000000:41:00.0 Off |                    0 |
+| N/A   28C    P0             63W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA A100-SXM4-80GB          On  |   00000000:82:00.0 Off |                    0 |
+| N/A   30C    P0             65W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA A100-SXM4-80GB          On  |   00000000:C1:00.0 Off |                    0 |
+| N/A   28C    P0             64W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+Running BIN=4 CASE=lower
+JAX backend: gpu
+NumPyro: 0.13.2
+[load] bin=4 z=[2.6,2.8) N=38558 from y3_bin4_z2.6-2.8_arrays.npz
+[split] valid=38,558 upper=32,102 lower=6,456
+[case] case=lower N=6,456
+[mcmc] warmup=10000 samples=10000 chains=4 seed=16367
+
+                 mean       std    median      5.0%     95.0%     n_eff     r_hat
+          b      1.84      0.30      1.80      1.35      2.32  11410.66      1.00
+       beta     -3.08      0.21     -3.06     -3.41     -2.74   6699.28      1.00
+        gap      1.89      0.12      1.89      1.69      2.09  11807.11      1.00
+  log_Lstar    106.03      0.28    106.02    105.56    106.48   6417.31      1.00
+   log_Nphi      7.79      0.32      7.83      7.28      8.28   6320.10      1.00
+         m0     22.53      0.33     22.54     21.97     23.06   7064.43      1.00
+
+Number of divergences: 0
+[save] wrote /global/homes/z/zhaozhon/project/results/mcmc/stripe_cases/bin4_z2.6-2.8_lower_w10000_s10000_c4.npz

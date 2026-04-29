@@ -18,16 +18,33 @@ def raw_paths(raw_dir, summary_name="desi-ztf-qso-loa-pernight-summary.fits",
     return summary, pernight
 
 # ---------- Catalog read / basic cuts ----------
-def read_data(path, zmin, zmax, band, magmin, magmax, select_qso=False):
+def read_data(path, zmin, zmax, band, magmin, magmax, select_qso=False, return_cutflow=True):
+    """
+    Read DESI pernight summary table and apply staged cuts, while tracking cut-flow.
+
+    Returns
+    -------
+    d : astropy.table.Table
+        Filtered table.
+    cutflow : list[dict]  (only if return_cutflow=True)
+        Each entry has keys: step, n_rows, note
+    """
     file = str(path)
     d = Table(fitsio.read(file, "FIBERMAP"))
     hpxd = Table(fitsio.read(file, "HPXMASTER"))
     assert np.all(d["TARGETID"] == hpxd["TARGETID"])
 
+    cutflow = []
+    def log(step, note=""):
+        cutflow.append({"step": step, "n_rows": int(len(d)), "note": note})
+
+    log("raw_read", "FIBERMAP (+ HPXMASTER merged later)")
+
     # merge cols
     for key in hpxd.colnames:
         if key not in d.colnames:
             d[key] = hpxd[key]
+    log("merge_hpxmaster", "Merged missing columns from HPXMASTER")
 
     # mags + errors (safeguard divide-by-zero)
     with np.errstate(divide="ignore", invalid="ignore"):
@@ -35,11 +52,13 @@ def read_data(path, zmin, zmax, band, magmin, magmax, select_qso=False):
         d["APP_MAG_R"] = 22.5 - 2.5 * np.log10(d["FLUX_R"]) - 2.165 * d["EBV"]
         d["APP_MAGERR_G"] = 2.5 / np.log(10) / (d["FLUX_G"] * np.sqrt(d["FLUX_IVAR_G"]))
         d["APP_MAGERR_R"] = 2.5 / np.log(10) / (d["FLUX_R"] * np.sqrt(d["FLUX_IVAR_R"]))
+    log("compute_mags", "Computed APP_MAG_{G,R} and APP_MAGERR_{G,R}")
 
     # dedupe by TARGETID (keep first)
     _, ii = np.unique(d["TARGETID"], return_index=True)
     ii.sort()
     d = d[ii]
+    log("dedupe_targetid", "Kept first occurrence of each TARGETID")
 
     # DR2-like footprint cut
     ra2 = np.asarray(d["TARGET_RA"], dtype=float).copy()
@@ -49,16 +68,25 @@ def read_data(path, zmin, zmax, band, magmin, magmax, select_qso=False):
     ngc = (b > 0) & (d["TARGET_DEC"] < 17)
     sgc = (b < 0) & (d["TARGET_DEC"] > -7 - 0.1 * ra2) & (d["TARGET_DEC"] < 10 + 0.1 * ra2)
     d = d[ngc | sgc]
+    log("footprint_ngc_sgc", "Applied simplified NGC/SGC footprint")
 
-    # z + mag cuts
+    # z cut
     sel = (d["Z"] > zmin) & (d["Z"] < zmax)
     d = d[sel]
+    log("z_cut", f"Z in ({zmin}, {zmax})")
+
+    # magnitude cut
     mag_col = "APP_MAG_%s" % band.upper()
     sel = (d[mag_col] > magmin) & (d[mag_col] < magmax)
     d = d[sel]
+    log("mag_cut", f"{mag_col} in ({magmin}, {magmax})")
 
     # distance modulus
     d["MU"] = Planck18.distmod(d["Z"]).value
+    log("distance_modulus", "Computed MU from Planck18.distmod(Z)")
+
+    if return_cutflow:
+        return d, cutflow
     return d
 
 # ---------- Filter loader ----------

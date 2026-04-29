@@ -1,0 +1,5 @@
+usage: mcmc_perbin_case.py [-h] --bin-index {1,2,3,4,5} --case {all,upper,lower} [--num-warmup NUM_WARMUP] [--num-samples NUM_SAMPLES]
+                           [--num-chains NUM_CHAINS] [--seed SEED] [--target-accept TARGET_ACCEPT]
+mcmc_perbin_case.py: error: unrecognized arguments: --make-split-plot
+srun: error: nid001836: task 0: Exited with exit code 2
+srun: Terminating StepId=48439387.0

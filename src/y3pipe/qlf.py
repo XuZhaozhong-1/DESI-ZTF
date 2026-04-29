@@ -19,47 +19,53 @@ from jax.scipy.special import logsumexp
 from jax.nn import softplus
 
 class ln_likelihood_bin(object):
-    def __init__(self, zmin, zmax):
-        self.Volume = (Planck18.comoving_volume(zmax) - Planck18.comoving_volume(zmin)).value
+    def __init__(self, sigma_m, k, sigma_k, zmin, zmax, order=0, sigma_coeff=None, mu=None, m_ref=22.0):
+        w_k = 1.0 / (sigma_k**2)
+        self.k_mean = jnp.sum(k * w_k) / jnp.sum(w_k)
+        if mu is None:
+            self.mu = jnp.asarray(Planck18.distmod(0.5*(zmin+zmax)).value)
+        else:
+            self.mu = mu
+        self.order = int(order)
+        self.m_ref = float(m_ref)
 
-    def __call__(self, m0, b, m, sigma_m, k, sigma_k, mu,
-                 log_Nphi, log_Lstar, alpha, beta):
-        # weighted k summary
-        w_k    = 1.0 / (sigma_k**2)
-        k_mean = jnp.sum(k * w_k) / jnp.sum(w_k)
-        # sigma_k_mean kept if you want it for diagnostics:
-        # sigma_k_mean = 1.0 / jnp.sqrt(jnp.sum(w_k))
+        if self.order == 0:
+            self.sigma_const = jnp.mean(sigma_m)   # scalar
+            self.sigma_coeff = None
+        else:
+            if sigma_coeff is None:
+                raise ValueError("order>=1 requires sigma_coeff (polyfit coefficients).")
+            self.sigma_coeff = jnp.asarray(sigma_coeff)
 
-        # absolute magnitude with your mean-k and sigma_m approximation
-        M0 = m - mu - (jnp.log(10)/2.5) * (sigma_m.mean()**2) * alpha - k_mean
+    def sigma_m_of_m(self, m):
+        if self.order == 0:
+            return jnp.ones_like(m) * self.sigma_const
+        x = m - self.m_ref
+        log10_sigma = jnp.polyval(self.sigma_coeff, x)
+        return jnp.power(10.0, log10_sigma)
 
-        # selection
-        log_efficiency = -softplus(b * (m - m0))
+    def __call__(self, m0, b, m, log_Nphi, log_Lstar, alpha, beta):
+        c = jnp.log(10.0) / 2.5
 
-        # convolution correction (your form)
-        exponent = - ((jnp.log(10)/2.5) * alpha * sigma_m.mean()**2)**2 / (2.0 * (sigma_m.mean()**2))
+        sigma_m = self.sigma_m_of_m(m)
 
-        # log L0 with your convention (log_Lstar already natural log)
-        lnL0 = jnp.log(const.L_bol0.to(units.erg/units.s).value) - 0.4 * M0 * jnp.log(10.0) - log_Lstar
+        M0 = m - self.mu - self.k_mean - c * (sigma_m**2) * alpha
+        lnL0 = -0.4 * M0 * jnp.log(10.0) - log_Lstar
 
-        # denominator of double power-law (kept with your signs)
         log_den = logsumexp(
             jnp.stack([-(alpha + 1.0) * lnL0, -(beta + 1.0) * lnL0], axis=0),
             axis=0
         )
 
-        # intensity in log space
-        log_I = log_Nphi + log_efficiency + exponent - log_den + jnp.log(jnp.log(10.0)/2.5)
+        exponent = -0.5 * (c**2) * (sigma_m**2) * (alpha**2)
+        log_eff = -softplus(b * (m - m0))
 
-        # ensure m is sorted for trapezoid
+        log_I = log_Nphi + log_eff + exponent - log_den + jnp.log(c)
+
         order = jnp.argsort(m)
         m_ord = m[order]
-        
-        log_I_ord = log_I[order]
-        I_ord = jnp.exp(log_I_ord)
+        I_ord = jnp.exp(log_I[order])
+
         term1 = -jnp.trapezoid(I_ord, m_ord)
-
-        # data (point-process) term — your chosen form
         term2 = jnp.sum(log_I)
-
         return term1 + term2

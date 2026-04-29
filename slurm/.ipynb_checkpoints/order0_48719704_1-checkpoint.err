@@ -1,0 +1,12 @@
+Traceback (most recent call last):
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 195, in <module>
+    main()
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 151, in main
+    model = make_model(like, m_j)
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 84, in make_model
+    logN_lo, logN_hi, logL_lo, logL_hi = natlog_bounds()
+  File "/global/homes/z/zhaozhon/project/scripts/mcmc_perbin_case_order0.py", line 59, in natlog_bounds
+    lnLbol0 = np.log(const.L_bol0.to(units.erg/units.s).value)
+NameError: name 'units' is not defined
+srun: error: nid003732: task 0: Exited with exit code 1
+srun: Terminating StepId=48719706.0

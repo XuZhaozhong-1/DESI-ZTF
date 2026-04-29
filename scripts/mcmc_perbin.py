@@ -108,7 +108,9 @@ def main():
 
     # Build likelihood + model
     like  = ln_likelihood_bin(zmin, zmax)
-    model = make_model(like, m, sigma_m, k, sigma_k, mu)
+    z_center = 0.5 * (zmin + zmax)
+    mu_scalar = jnp.asarray(Planck18.distmod(z_center).value)
+    model = make_model(like, m, jnp.mean(sigma_m), k, sigma_k, mu_scalar)
 
     # Avoid thread oversubscription
     os.environ.setdefault("OMP_NUM_THREADS", "1")

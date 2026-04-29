@@ -1,0 +1,55 @@
+[Tue 10 Feb 2026 05:55:23 PM PST] Host: nid008641
+SLURM_JOB_ID=48747084  ARRAY_JOB_ID=48747081  TASK_ID=1
+WorkDir: /global/u1/z/zhaozhon/project
+CUDA_VISIBLE_DEVICES=0,1,2,3
+/global/common/software/desi/perlmutter/desiconda/20240425-2.2.0/conda/bin/python
+Python 3.10.14
+Tue Feb 10 17:55:23 2026       
++-----------------------------------------------------------------------------------------+
+| NVIDIA-SMI 550.163.01             Driver Version: 550.163.01     CUDA Version: 12.4     |
+|-----------------------------------------+------------------------+----------------------+
+| GPU  Name                 Persistence-M | Bus-Id          Disp.A | Volatile Uncorr. ECC |
+| Fan  Temp   Perf          Pwr:Usage/Cap |           Memory-Usage | GPU-Util  Compute M. |
+|                                         |                        |               MIG M. |
+|=========================================+========================+======================|
+|   0  NVIDIA A100-SXM4-80GB          On  |   00000000:03:00.0 Off |                    0 |
+| N/A   28C    P0             63W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   1  NVIDIA A100-SXM4-80GB          On  |   00000000:41:00.0 Off |                    0 |
+| N/A   28C    P0             61W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   2  NVIDIA A100-SXM4-80GB          On  |   00000000:82:00.0 Off |                    0 |
+| N/A   29C    P0             63W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+|   3  NVIDIA A100-SXM4-80GB          On  |   00000000:C1:00.0 Off |                    0 |
+| N/A   27C    P0             64W /  500W |       1MiB /  81920MiB |      0%      Default |
+|                                         |                        |             Disabled |
++-----------------------------------------+------------------------+----------------------+
+                                                                                         
++-----------------------------------------------------------------------------------------+
+| Processes:                                                                              |
+|  GPU   GI   CI        PID   Type   Process name                              GPU Memory |
+|        ID   ID                                                               Usage      |
+|=========================================================================================|
+|  No running processes found                                                             |
++-----------------------------------------------------------------------------------------+
+[dispatch] bin=1 case=upper
+JAX backend: gpu
+[load] bin1_z2.3-2.4 N=33,604 from y3_bin1_z2.3-2.4_arrays.npz
+[split] from bin1_z2.3-2.4_split.npz: upper=28,122 lower=5,482
+[case] upper: N=28,122
+[mcmc] warmup=10000 samples=10000 chains=4
+
+                 mean       std    median      5.0%     95.0%     n_eff     r_hat
+          b      1.63      0.06      1.63      1.53      1.73   9627.31      1.00
+       beta     -3.25      0.14     -3.24     -3.46     -3.03   8110.20      1.00
+        gap      1.88      0.28      1.83      1.47      2.30   8748.86      1.00
+  log_Lstar     21.71      0.25     21.67     21.33     22.08   8036.34      1.00
+   log_Nphi     15.01      0.34     15.02     14.45     15.55   9437.48      1.00
+         m0     19.51      0.21     19.52     19.17     19.85   8360.57      1.00
+
+Number of divergences: 0
+[save] wrote /global/homes/z/zhaozhon/project/results/mcmc/split/order0/y3_bin1_z2.3-2.4_upper_order0_w10000_s10000_c4.npz
